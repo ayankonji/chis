@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background-color: #F5F5F7;
+    color: #1D1D1F;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: rgba(0, 122, 255, 0.2);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #C7C7CC;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8E8E93;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+  }
+
+  .card-3d {
+    transform-style: preserve-3d;
+    perspective: 1000px;
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, #1D1D1F 0%, #434344 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .shimmer-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer-effect::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      105deg,
+      transparent 40%,
+      rgba(255, 255, 255, 0.25) 50%,
+      transparent 60%
+    );
+    animation: shimmer 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%) rotate(25deg); }
+    100% { transform: translateX(100%) rotate(25deg); }
+  }
+
+  .ios-button {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-ios-lg font-medium text-white transition-all duration-300 ease-ios;
+    background: linear-gradient(180deg, #007AFF 0%, #0066CC 100%);
+    box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .ios-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .ios-button:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 1px 4px rgba(0, 122, 255, 0.3);
+  }
+
+  .ios-card {
+    @apply bg-white rounded-ios overflow-hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    transition: all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+
+  .ios-card:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  .ios-input {
+    @apply w-full px-4 py-3 rounded-ios border border-ios-gray-4 bg-white text-ios-text outline-none transition-all duration-300;
+  }
+
+  .ios-input:focus {
+    @apply border-ios-blue;
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  }
+
+  .tag-hot {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: linear-gradient(135deg, #FFF5F5 0%, #FFE5E5 100%);
+    color: #FF3B30;
+    border: 1px solid rgba(255, 59, 48, 0.15);
+  }
+
+  .tag-cold {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+    color: #007AFF;
+    border: 1px solid rgba(0, 122, 255, 0.15);
+  }
+
+  .tag-warm {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+    color: #D97706;
+    border: 1px solid rgba(217, 119, 6, 0.15);
+  }
+}
+
+@layer utilities {
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

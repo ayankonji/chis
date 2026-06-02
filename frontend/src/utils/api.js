@@ -7,7 +7,7 @@ import { getSampleData, addFood, updateFood, deleteFood, getCategories, getRando
 // 例如：const API_BASE = 'https://chis-api.vercel.app';
 //
 // 本地开发时保持为空字符串，会自动使用本地代理
-const API_BASE = '';
+const API_BASE = 'https://chis-api.vercel.app';
 
 let useBackend = false;
 

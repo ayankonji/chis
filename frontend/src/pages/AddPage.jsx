@@ -52,12 +52,28 @@ export default function AddPage({ editMode = false }) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleImageChange = (e) => {
+    const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const handleImageChange = async (e) => {
     const file = e.target.files[0]
     if (file) {
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
-      setForm(prev => ({ ...prev, image: file }))
+      try {
+        const base64 = await fileToBase64(file)
+        setPreviewUrl(base64)
+        setForm(prev => ({ ...prev, image: base64 }))
+      } catch {
+        // fallback to blob URL if base64 fails
+        const url = URL.createObjectURL(file)
+        setPreviewUrl(url)
+        setForm(prev => ({ ...prev, image: url }))
+      }
     }
   }
 
@@ -81,7 +97,7 @@ export default function AddPage({ editMode = false }) {
       temperature: form.temperature,
       category: form.category,
       description: form.description,
-      image: typeof form.image === 'string' ? form.image : previewUrl,
+      image: form.image || previewUrl || '',
     }
 
     if (editMode && id) {

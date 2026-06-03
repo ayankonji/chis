@@ -103,7 +103,9 @@ export default function DrawPage() {
                 不知道吃什么？点击按钮，让命运决定你的下一餐
               </p>
 
-              <DrawButton onClick={handleDraw} disabled={foods.length === 0} />
+              <div className="flex justify-center">
+                <DrawButton onClick={handleDraw} disabled={foods.length === 0} />
+              </div>
 
               <p className="text-ios-gray text-sm mt-6">
                 美食库共 {foods.length} 道美食

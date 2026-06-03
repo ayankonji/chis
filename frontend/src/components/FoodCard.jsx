@@ -7,9 +7,9 @@ export default function FoodCard({ food, index = 0, layoutId }) {
   const [imgLoaded, setImgLoaded] = useState(false)
 
   const tempConfig = {
-    '热': { class: 'tag-hot', icon: <Thermometer className="w-3 h-3" /> },
-    '冰': { class: 'tag-cold', icon: <Thermometer className="w-3 h-3" /> },
-    '常温': { class: 'tag-warm', icon: <Thermometer className="w-3 h-3" /> },
+    '热': { color: 'bg-ios-red/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
+    '冰': { color: 'bg-ios-blue/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
+    '常温': { color: 'bg-ios-orange/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
   }
   const temp = tempConfig[food.temperature] || tempConfig['常温']
 
@@ -27,9 +27,9 @@ export default function FoodCard({ food, index = 0, layoutId }) {
       className="group"
     >
       <Link to={`/food/${food.id}`} className="block tap-highlight-none">
-        <div className="ios-card shimmer-effect relative">
-          {/* 图片区域 */}
-          <div className="relative w-full overflow-hidden" style={{ paddingBottom: '70%' }}>
+        <div className="relative rounded-[20px] overflow-hidden shadow-ios hover:shadow-ios-hover transition-all duration-500 group-hover:-translate-y-3">
+          {/* 全图背景 */}
+          <div className="relative w-full aspect-[3/4] overflow-hidden">
             {!imgLoaded && (
               <div className="absolute inset-0 bg-ios-gray-5 animate-pulse" />
             )}
@@ -42,72 +42,73 @@ export default function FoodCard({ food, index = 0, layoutId }) {
                 imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
               } group-hover:scale-110`}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-            {/* 分类标签 */}
+            {/* 底部毛玻璃渐变遮罩 */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+            {/* 分类标签 - 左上角 */}
             <div className="absolute top-3 left-3">
               <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/80 backdrop-blur-md text-ios-text shadow-sm">
                 {food.category}
               </span>
             </div>
-          </div>
 
-          {/* 信息区域 */}
-          <div className="p-4 space-y-3">
-            <h3 className="text-base font-semibold text-ios-text text-center truncate">
-              {food.name}
-            </h3>
+            {/* 信息区域 - 底部毛玻璃面板 */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 backdrop-blur-md bg-white/15">
+              {/* 美食名称 */}
+              <h3 className="text-lg font-semibold text-white text-center mb-1 drop-shadow-lg">
+                {food.name}
+              </h3>
 
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-ios-text-secondary">
-                ¥{food.price}
-              </span>
-              <span className="text-ios-text-secondary">
-                {food.calories} kcal
-              </span>
-            </div>
+              {/* 价格 & 热量 */}
+              <div className="flex items-center justify-center gap-3 text-sm text-white/90 mb-2">
+                <span className="font-medium">¥{food.price}</span>
+                <span className="w-1 h-1 rounded-full bg-white/50" />
+                <span>{food.calories} kcal</span>
+              </div>
 
-            {/* 甜度辣度 */}
-            <div className="flex items-center justify-between">
-              <RatingDisplay
-                icon={<Candy className="w-3.5 h-3.5" />}
-                value={food.sweetness}
-                color="text-ios-pink"
-                emptyColor="text-ios-gray-4"
-                label="甜度"
-              />
-              <RatingDisplay
-                icon={<Flame className="w-3.5 h-3.5" />}
-                value={food.spiciness}
-                color="text-ios-red"
-                emptyColor="text-ios-gray-4"
-                label="辣度"
-              />
-            </div>
+              {/* 描述 */}
+              {food.description && (
+                <p className="text-xs text-white/75 text-center mb-3 line-clamp-2 leading-relaxed">
+                  {food.description}
+                </p>
+              )}
 
-            {/* 温度标签 */}
-            <div className="flex justify-center">
-              <span className={`${temp.class} flex items-center gap-1`}>
-                {temp.icon}
-                {food.temperature}
-              </span>
+              {/* 甜度 - 单独一行 */}
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[10px] text-white/80 w-6 flex-shrink-0">甜度</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <span key={i} className={i <= food.sweetness ? 'text-ios-pink' : 'text-white/25'}>
+                      <Candy className="w-3 h-3" fill={i <= food.sweetness ? 'currentColor' : 'none'} />
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 辣度 - 单独一行 */}
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-[10px] text-white/80 w-6 flex-shrink-0">辣度</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <span key={i} className={i <= food.spiciness ? 'text-ios-red' : 'text-white/25'}>
+                      <Flame className="w-3 h-3" fill={i <= food.spiciness ? 'currentColor' : 'none'} />
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 温度标签 */}
+              <div className="flex justify-center">
+                <span className={`${temp.color} flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm`}>
+                  {temp.icon}
+                  {food.temperature}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </Link>
     </motion.div>
-  )
-}
-
-function RatingDisplay({ icon, value, color, emptyColor, label }) {
-  return (
-    <div className="flex items-center gap-1">
-      <span className="text-xs text-ios-text-secondary mr-1">{label}</span>
-      {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} className={i <= value ? color : emptyColor}>
-          {icon}
-        </span>
-      ))}
-    </div>
   )
 }

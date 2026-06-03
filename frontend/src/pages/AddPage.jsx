@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Upload, Loader2, Flame, Candy, Thermometer, AlertCircle } from 'lucide-react'
-import { createFood, fetchFood, editFood, fetchAllFoods } from '../utils/api'
+import { ArrowLeft, Upload, Loader2, Flame, Candy, Thermometer, AlertCircle, Check } from 'lucide-react'
+import { createFood, fetchFood, editFood, fetchAllFoods, checkFoodExists } from '../utils/api'
 import { isAdminLoggedIn } from '../utils/admin'
 import { recalculateAndSaveTiers } from '../utils/gacha'
 import { compressImage, blobToBase64 } from '../utils/image'
+import { useFoods } from '../context/FoodsContext'
 import AdminLoginModal from '../components/AdminLoginModal'
 
-const CATEGORIES = ['中餐', '西餐', '日料', '韩料', '泰料', '甜点', '饮品', '轻食', '快餐', '其他']
+const CATEGORIES = [
+  '中餐', '西餐', '日料', '韩料', '泰料',
+  '甜点', '饮品', '轻食', '快餐', '火锅',
+  '烧烤', '小吃', '水果', '烘焙', '其他'
+]
 const TEMPERATURES = ['热', '冷', '常温']
+const UPLOADER_OPTIONS = ['hyy', 'xyt']
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png']
@@ -17,6 +23,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png']
 export default function AddPage({ editMode = false }) {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { refreshFoods } = useFoods()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [compressing, setCompressing] = useState(false)
@@ -34,6 +41,7 @@ export default function AddPage({ editMode = false }) {
     category: '中餐',
     description: '',
     image: '',
+    uploader: 'hyy',
   })
 
   // 检查管理员权限
@@ -60,6 +68,7 @@ export default function AddPage({ editMode = false }) {
             category: data.category || '中餐',
             description: data.description || '',
             image: data.image || '',
+            uploader: data.uploader || 'hyy',
           })
           setPreviewUrl(data.image || '')
         }
@@ -75,18 +84,30 @@ export default function AddPage({ editMode = false }) {
     }
   }
 
+  // 上传者多选切换
+  const toggleUploader = (value) => {
+    setForm(prev => {
+      const current = (prev.uploader || '').split(',').map(s => s.trim()).filter(Boolean)
+      const idx = current.indexOf(value)
+      if (idx >= 0) {
+        current.splice(idx, 1)
+      } else {
+        current.push(value)
+      }
+      return { ...prev, uploader: current.join(',') }
+    })
+  }
+
   const handleImageChange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
 
-    // 格式校验
     if (!ALLOWED_TYPES.includes(file.type)) {
       setErrors(prev => ({ ...prev, image: '仅支持 JPG 和 PNG 格式的图片' }))
       e.target.value = ''
       return
     }
 
-    // 大小校验
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
       setErrors(prev => ({ ...prev, image: `图片大小 ${sizeMB}MB 超过限制，最大允许 15MB` }))
@@ -99,11 +120,11 @@ export default function AddPage({ editMode = false }) {
     }
 
     try {
-      // 压缩图片（>500KB 的压缩到 ~500KB）
       setCompressing(true)
       let processedFile = file
-      if (file.size > 500 * 1024) {
-        processedFile = await compressImage(file, 500)
+      // 压缩到 200KB 以内
+      if (file.size > 200 * 1024) {
+        processedFile = await compressImage(file, 200)
         const originalKB = (file.size / 1024).toFixed(0)
         const compressedKB = (processedFile.size / 1024).toFixed(0)
         console.log(`[图片压缩] ${originalKB}KB → ${compressedKB}KB`)
@@ -119,7 +140,7 @@ export default function AddPage({ editMode = false }) {
     }
   }
 
-  const validate = () => {
+  const validate = async () => {
     const newErrors = {}
     if (!form.name.trim()) newErrors.name = '请输入美食名称'
 
@@ -135,13 +156,36 @@ export default function AddPage({ editMode = false }) {
       newErrors.calories = '卡路里不能为负数'
     }
 
+    // 上传者校验
+    if (!form.uploader || form.uploader.trim() === '') {
+      newErrors.uploader = '请选择上传者'
+    }
+
+    // 重复检测（仅新增模式）
+    if (!editMode && form.name.trim()) {
+      const existing = await checkFoodExists(form.name.trim())
+      if (existing.length > 0) {
+        newErrors.name = `已存在同名美食"${form.name.trim()}"，确认重复添加将使该美食抽卡概率翻倍`
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!validate()) return
+    const isValid = await validate()
+    if (!isValid) return
+
+    // 如果有同名警告，让用户确认
+    if (errors.name && errors.name.includes('已存在同名美食')) {
+      if (!confirm(`${errors.name}\n\n是否确认添加？`)) {
+        return
+      }
+      // 清除错误继续提交
+      setErrors(prev => { const next = { ...prev }; delete next.name; return next })
+    }
 
     setSaving(true)
     const data = {
@@ -154,6 +198,7 @@ export default function AddPage({ editMode = false }) {
       category: form.category,
       description: form.description,
       image: form.image || previewUrl || '',
+      uploader: form.uploader || 'hyy',
     }
 
     try {
@@ -165,15 +210,17 @@ export default function AddPage({ editMode = false }) {
 
       // 增删改后自动重算品级和概率
       await recalculateAndSaveTiers(fetchAllFoods, editFood)
+      // 刷新全局缓存
+      await refreshFoods()
     } catch (err) {
       console.error('保存失败:', err)
+      alert('保存失败：' + (err.message || '未知错误'))
     }
 
     setSaving(false)
     navigate('/')
   }
 
-  // 未授权：显示登录弹窗 + 占位页面
   if (!authorized) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
@@ -258,7 +305,7 @@ export default function AddPage({ editMode = false }) {
                 <label className="flex flex-col items-center justify-center w-full h-48 rounded-ios border-2 border-dashed border-ios-gray-4 bg-ios-gray-6 cursor-pointer hover:border-warm-orange transition-colors">
                   <Upload className="w-8 h-8 text-ios-text-secondary mb-2" />
                   <span className="text-sm text-ios-text-secondary">点击上传图片</span>
-                  <span className="text-xs text-ios-text-secondary mt-1">支持 JPG / PNG，最大 15MB</span>
+                  <span className="text-xs text-ios-text-secondary mt-1">支持 JPG / PNG，自动压缩至 200KB 以内</span>
                   <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageChange} />
                 </label>
               )}
@@ -267,6 +314,40 @@ export default function AddPage({ editMode = false }) {
               <p className="flex items-center gap-1 mt-2 text-sm text-ios-red">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 {errors.image}
+              </p>
+            )}
+          </div>
+
+          {/* 上传者选择 */}
+          <div>
+            <label className="block text-sm font-medium text-ios-text mb-2">上传者</label>
+            <div className="flex gap-2">
+              {UPLOADER_OPTIONS.map(opt => {
+                const selected = (form.uploader || '').split(',').includes(opt)
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleUploader(opt)}
+                    className={`flex-1 py-3 rounded-ios text-sm font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
+                      selected
+                        ? 'bg-warm-orange text-white shadow-md'
+                        : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
+                    }`}
+                  >
+                    {selected && <Check className="w-4 h-4" />}
+                    {opt}
+                  </button>
+                )
+              })}
+            </div>
+            {(form.uploader || '').split(',').length > 1 && (
+              <p className="text-xs text-ios-text-secondary mt-1.5">已选择多人（连锁店模式）</p>
+            )}
+            {errors.uploader && (
+              <p className="flex items-center gap-1 mt-1.5 text-sm text-ios-red">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {errors.uploader}
               </p>
             )}
           </div>

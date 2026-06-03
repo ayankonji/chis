@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Flame, Candy, Thermometer, Trash2, Edit3, Loader2, Star } from 'lucide-react'
+import { ArrowLeft, Flame, Candy, Thermometer, Trash2, Edit3, Loader2, Star, User, Image } from 'lucide-react'
 import { fetchFood, removeFood, fetchAllFoods, editFood } from '../utils/api'
 import { isAdminLoggedIn } from '../utils/admin'
 import { TIER_CONFIG, recalculateAndSaveTiers } from '../utils/gacha'
+import { getImageSizeKB } from '../utils/image'
+import { useFoods } from '../context/FoodsContext'
 import AdminLoginModal from '../components/AdminLoginModal'
 
 export default function DetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { refreshFoods } = useFoods()
   const [food, setFood] = useState(null)
   const [loading, setLoading] = useState(true)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [showAdminModal, setShowAdminModal] = useState(false)
-  const [pendingAction, setPendingAction] = useState(null) // 'edit' | 'delete'
+  const [pendingAction, setPendingAction] = useState(null)
 
   useEffect(() => {
     setLoading(true)
@@ -24,7 +27,6 @@ export default function DetailPage() {
     })
   }, [id])
 
-  // 需要管理员权限的操作
   const requireAdmin = (action) => {
     if (isAdminLoggedIn()) {
       executeAction(action)
@@ -40,8 +42,8 @@ export default function DetailPage() {
     } else if (action === 'delete') {
       if (!confirm('确定要删除这道美食吗？')) return
       await removeFood(id)
-      // 删除后自动重算品级和概率
       await recalculateAndSaveTiers(fetchAllFoods, editFood)
+      await refreshFoods()
       navigate('/')
     }
   }
@@ -78,9 +80,10 @@ export default function DetailPage() {
   }
   const temp = tempConfig[food.temperature] || tempConfig['常温']
 
-  // 品级信息（如果数据库中有 gacha_tier 字段）
   const tier = food.gacha_tier || 'bronze'
   const tierCfg = TIER_CONFIG[tier]
+  const imageSizeKB = getImageSizeKB(food.image)
+  const uploaderLabel = (food.uploader || 'hyy').split(',').map(u => u.trim()).join(' · ')
 
   return (
     <motion.div
@@ -119,7 +122,7 @@ export default function DetailPage() {
           <ArrowLeft className="w-5 h-5" />
         </motion.button>
 
-        {/* 操作按钮（需管理员权限） */}
+        {/* 操作按钮 */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -149,9 +152,14 @@ export default function DetailPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span className="inline-block px-3 py-1 rounded-lg text-xs font-medium bg-white/20 backdrop-blur-md text-white">
                 {food.category}
+              </span>
+              {/* 上传者标签 */}
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-white/20 backdrop-blur-md text-white">
+                <User className="w-3 h-3" />
+                {uploaderLabel}
               </span>
               {/* 品级角标 */}
               {food.gacha_tier && (
@@ -235,6 +243,14 @@ export default function DetailPage() {
               <p className="text-ios-text leading-relaxed">{food.description}</p>
             </div>
           )}
+
+          {/* 图片大小信息（管理员可见） */}
+          <div className="pt-3 border-t border-ios-gray-5 mt-4">
+            <div className="flex items-center gap-2 text-xs text-ios-text-secondary">
+              <Image className="w-3.5 h-3.5" />
+              <span>图片大小：{imageSizeKB > 0 ? `${imageSizeKB} KB` : '无图片 (0 KB)'}</span>
+            </div>
+          </div>
         </motion.div>
 
         {/* 底部操作 */}
@@ -253,7 +269,6 @@ export default function DetailPage() {
         </motion.div>
       </div>
 
-      {/* 管理员登录弹窗 */}
       <AdminLoginModal
         isOpen={showAdminModal}
         onClose={() => { setShowAdminModal(false); setPendingAction(null) }}

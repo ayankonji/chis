@@ -1,18 +1,18 @@
 // ============================================
 // 图片压缩工具
-// 将上传的图片压缩到目标大小（默认500KB）
-// 保持宽高比，最大边限制1200px
+// 将上传的图片压缩到目标大小（默认200KB）
+// 保持宽高比，最大边限制800px
 // ============================================
 
-const MAX_EDGE = 1200 // 最大边长（px）
+const MAX_EDGE = 800 // 最大边长（px）
 
 /**
  * 压缩图片到目标大小
  * @param {File} file - 原始图片文件
- * @param {number} maxSizeKB - 目标大小（KB），默认500
+ * @param {number} maxSizeKB - 目标大小（KB），默认200
  * @returns {Promise<Blob>} 压缩后的图片Blob
  */
-export async function compressImage(file, maxSizeKB = 500) {
+export async function compressImage(file, maxSizeKB = 200) {
   const maxSizeBytes = maxSizeKB * 1024
 
   // 1. 加载图片
@@ -51,8 +51,8 @@ export async function compressImage(file, maxSizeKB = 500) {
     return bestBlob
   }
 
-  // 二分法迭代
-  for (let i = 0; i < 8; i++) {
+  // 二分法迭代（10次足够精确）
+  for (let i = 0; i < 10; i++) {
     const mid = (low + high) / 2
     const blob = await canvasToBlob(canvas, mid)
     if (blob.size <= maxSizeBytes) {
@@ -89,4 +89,17 @@ export function blobToBase64(blob) {
     reader.onerror = reject
     reader.readAsDataURL(blob)
   })
+}
+
+/**
+ * 计算 Base64 图片的大小（KB）
+ * @param {string} base64 - Base64 编码的图片
+ * @returns {number} 大小（KB）
+ */
+export function getImageSizeKB(base64) {
+  if (!base64) return 0
+  // Base64 编码会增加约 33% 的大小，实际大小 = 长度 * 3/4
+  const base64Data = base64.split(',')[1] || base64
+  const bytes = Math.round(base64Data.length * 3 / 4)
+  return Math.round(bytes / 1024)
 }

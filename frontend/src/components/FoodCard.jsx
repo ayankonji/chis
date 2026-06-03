@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Flame, Candy, Thermometer } from 'lucide-react'
+import { Flame, Candy, Thermometer, User } from 'lucide-react'
 
 export default function FoodCard({ food, index = 0, layoutId }) {
   const [imgLoaded, setImgLoaded] = useState(false)
@@ -12,6 +12,14 @@ export default function FoodCard({ food, index = 0, layoutId }) {
     '常温': { color: 'bg-warm-orange/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
   }
   const temp = tempConfig[food.temperature] || tempConfig['常温']
+
+  // 上传者标签颜色
+  const uploaderColors = {
+    'hyy': 'bg-blue-500/80 text-white',
+    'xyt': 'bg-purple-500/80 text-white',
+  }
+
+  const uploaderLabel = (food.uploader || 'hyy').split(',').map(u => u.trim()).join(' · ')
 
   return (
     <motion.div
@@ -46,10 +54,14 @@ export default function FoodCard({ food, index = 0, layoutId }) {
             {/* 底部毛玻璃渐变遮罩 */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-            {/* 分类标签 - 左上角 */}
-            <div className="absolute top-3 left-3">
+            {/* 分类标签 + 上传者标签 - 左上角 */}
+            <div className="absolute top-3 left-3 flex flex-col gap-1.5">
               <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-white/80 backdrop-blur-md text-ios-text shadow-sm">
                 {food.category}
+              </span>
+              <span className="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-black/40 backdrop-blur-md text-white/90 flex items-center gap-1">
+                <User className="w-2.5 h-2.5" />
+                {uploaderLabel}
               </span>
             </div>
 

@@ -30,7 +30,7 @@ export async function fetchFoods(category = '全部', search = '') {
   return await res.json()
 }
 
-// 无条件获取全量食物（用于品级重算）
+// 无条件获取全量食物（用于品级重算和缓存）
 export async function fetchAllFoods() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?select=*&order=created_at.desc`, { headers })
   if (!res.ok) throw new Error('Failed to fetch all foods')
@@ -50,7 +50,11 @@ export async function createFood(foodData) {
     headers,
     body: JSON.stringify(foodData)
   })
-  if (!res.ok) throw new Error('Failed to create food')
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('createFood 失败:', res.status, errText)
+    throw new Error(`Failed to create food: ${res.status} ${errText}`)
+  }
   const data = await res.json()
   return data[0] || data
 }
@@ -61,7 +65,11 @@ export async function editFood(id, foodData) {
     headers,
     body: JSON.stringify(foodData)
   })
-  if (!res.ok) throw new Error('Failed to edit food')
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('editFood 失败:', res.status, errText)
+    throw new Error(`Failed to edit food: ${res.status}`)
+  }
   const data = await res.json()
   return data[0] || data
 }
@@ -81,6 +89,16 @@ export async function fetchCategories() {
   const data = await res.json()
   const unique = [...new Set(data.map(f => f.category).filter(Boolean))]
   return ['全部', ...unique]
+}
+
+// 检查同名美食是否已存在（问题5：重复检测）
+export async function checkFoodExists(name) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/foods?name=eq.${encodeURIComponent(name)}&select=id,name`,
+    { headers }
+  )
+  if (!res.ok) return []
+  return await res.json()
 }
 
 // ============================================

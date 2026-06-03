@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, ChevronDown, ChevronUp, Star, Info, RotateCcw, User, History } from 'lucide-react'
 import { TIER_CONFIG, generateProbabilityReport, calculateGachaDistribution } from '../utils/gacha'
-import { fetchFoods, fetchPity, fetchDrawLogs } from '../utils/api'
+import { fetchPity, fetchDrawLogs, fetchAllFoods } from '../utils/api'
 import { getDeviceId, getDeviceName, setDeviceName } from '../utils/device'
 
-export default function GachaProbabilityPanel({ isOpen, onClose }) {
+export default function GachaProbabilityPanel({ isOpen, onClose, foods: externalFoods }) {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [expandedFormula, setExpandedFormula] = useState(false)
@@ -19,8 +19,8 @@ export default function GachaProbabilityPanel({ isOpen, onClose }) {
     setLoading(true)
     try {
       const deviceId = getDeviceId()
-      const [foods, pityData, logs] = await Promise.all([
-        fetchFoods(),
+      const foods = externalFoods || await fetchAllFoods()
+      const [pityData, logs] = await Promise.all([
         fetchPity(deviceId),
         fetchDrawLogs(deviceId),
       ])
@@ -32,7 +32,7 @@ export default function GachaProbabilityPanel({ isOpen, onClose }) {
       console.error('加载概率数据失败:', e)
     }
     setLoading(false)
-  }, [])
+  }, [externalFoods])
 
   useEffect(() => {
     if (isOpen) {
@@ -127,51 +127,49 @@ export default function GachaProbabilityPanel({ isOpen, onClose }) {
                 {/* 品级概率分布 */}
                 <section>
                   <h3 className="text-sm font-semibold text-ios-text mb-3 flex items-center gap-2">
-                    <Star className="w-4 h-4 text-warm-orange" />
+                    <Star className="w-4 h-4 text-ios-text-secondary" />
                     品级概率分布
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
                     {['gold', 'silver', 'bronze'].map(tier => {
                       const cfg = TIER_CONFIG[tier]
-                      const stat = report.tierStats[tier]
+                      const stats = report.tierStats[tier]
                       return (
-                        <div key={tier} className="rounded-ios-sm p-3 text-center" style={{ border: `1.5px solid ${cfg.borderColor}40`, background: `${cfg.borderColor}08` }}>
-                          <div className="text-xs font-medium mb-1" style={{ color: cfg.borderColor }}>{cfg.name} · {cfg.label}</div>
-                          <div className="text-lg font-bold text-ios-text">{(stat.totalProb * 100).toFixed(1)}%</div>
-                          <div className="text-[10px] text-ios-text-secondary mt-0.5">{stat.foods.length} 道菜</div>
+                        <div key={tier} className="flex items-center gap-3 p-3 rounded-ios-xs" style={{ background: `${cfg.borderColor}10`, border: `1px solid ${cfg.borderColor}30` }}>
+                          <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: cfg.gradient }}>
+                            <Star className="w-4 h-4 text-white fill-current" />
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-ios-text">{cfg.name} · {cfg.label}</p>
+                            <p className="text-[10px] text-ios-text-secondary">{stats.foods.length} 道 · 总概率 {(stats.totalProb * 100).toFixed(1)}%</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-bold text-ios-text">{(stats.totalProb * 100).toFixed(1)}%</span>
+                            <p className="text-[10px] text-ios-text-secondary">{report.tierRanges[tier]}</p>
+                          </div>
                         </div>
                       )
                     })}
-                  </div>
-                  <div className="mt-3 p-3 bg-ios-gray-6 rounded-ios-xs text-xs text-ios-text-secondary space-y-1">
-                    <p><span style={{ color: '#FFD700' }}>●</span> 金卡(SSR)：概率 {report.tierRanges.gold}（稀有）</p>
-                    <p><span style={{ color: '#C0C0C0' }}>●</span> 银卡(SR)：概率 {report.tierRanges.silver}（普通稀有）</p>
-                    <p><span style={{ color: '#CD7F32' }}>●</span> 铜卡(R)：概率 {report.tierRanges.bronze}（常见）</p>
                   </div>
                 </section>
 
                 {/* 保底状态 */}
                 <section>
-                  <h3 className="text-sm font-semibold text-ios-text mb-3">保底计数状态</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-ios-gray-6 rounded-ios-sm p-3">
-                      <p className="text-xs text-ios-text-secondary mb-1">距银卡保底</p>
-                      <p className="text-xl font-bold text-ios-text">{Math.max(0, 10 - report.pity.pulls_since_last_4star)} <span className="text-xs font-normal text-ios-text-secondary">抽</span></p>
-                      <p className="text-[10px] text-ios-text-secondary">10抽内必出银卡+</p>
-                    </div>
-                    <div className="bg-ios-gray-6 rounded-ios-sm p-3">
-                      <p className="text-xs text-ios-text-secondary mb-1">距金卡保底</p>
-                      <p className="text-xl font-bold text-ios-text">{Math.max(0, 50 - report.pity.pulls_since_last_5star)} <span className="text-xs font-normal text-ios-text-secondary">抽</span></p>
-                      <p className="text-[10px] text-ios-text-secondary">50抽内必出金卡</p>
-                    </div>
+                  <h3 className="text-sm font-semibold text-ios-text mb-3 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-ios-text-secondary" />
+                    保底状态
+                  </h3>
+                  <div className="bg-ios-gray-6 rounded-ios-xs p-3 text-xs text-ios-text-secondary space-y-1">
+                    <p>距下次银卡保底：<strong className="text-ios-text">{Math.max(0, 10 - report.pity.pulls_since_last_4star)}</strong> 抽</p>
+                    <p>距下次金卡保底：<strong className="text-ios-text">{Math.max(0, 50 - report.pity.pulls_since_last_5star)}</strong> 抽</p>
+                    <p>总抽数：<strong className="text-ios-text">{report.pity.total_pulls}</strong></p>
                   </div>
-                  <p className="text-xs text-ios-text-secondary mt-2 text-center">累计抽取 <span className="font-medium text-ios-text">{report.pity.total_pulls}</span> 次</p>
                 </section>
 
-                {/* 公式说明 */}
+                {/* 概率公式 */}
                 <section>
                   <button onClick={() => setExpandedFormula(!expandedFormula)} className="w-full flex items-center justify-between py-2 text-sm font-semibold text-ios-text">
-                    <span className="flex items-center gap-2"><Info className="w-4 h-4 text-warm-orange" />概率计算公式</span>
+                    <span className="flex items-center gap-2"><Info className="w-4 h-4 text-ios-text-secondary" />概率计算公式</span>
                     {expandedFormula ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </button>
                   <AnimatePresence>
@@ -181,7 +179,6 @@ export default function GachaProbabilityPanel({ isOpen, onClose }) {
                           <p className="font-medium text-ios-text">{report.formula.description}</p>
                           {report.formula.steps.map((step, i) => <p key={i}>{step}</p>)}
                           <div className="pt-2 border-t border-ios-gray-5">
-                            <p>温度参数 T = {report.formula.temperature}</p>
                             <p>特征权重：价格({report.formula.weights.price})、热量({report.formula.weights.calories})、甜度({report.formula.weights.sweetness})、辣度({report.formula.weights.spiciness})、稀有度({report.formula.weights.rarity})</p>
                           </div>
                         </div>

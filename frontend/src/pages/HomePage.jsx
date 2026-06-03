@@ -1,35 +1,33 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, SlidersHorizontal, X, Loader2 } from 'lucide-react'
+import { Search, SlidersHorizontal, X, Loader2, User } from 'lucide-react'
 import FoodCard from '../components/FoodCard'
-import { fetchFoods, fetchCategories } from '../utils/api'
+import { useFoods } from '../context/FoodsContext'
+
+const UPLOADER_OPTIONS = [
+  { value: '全部', label: '全部' },
+  { value: 'hyy', label: 'hyy' },
+  { value: 'xyt', label: 'xyt' },
+]
 
 export default function HomePage() {
-  const [foods, setFoods] = useState([])
-  const [categories, setCategories] = useState(['全部'])
+  const { foods, categories, loading, loadFoods, filterFoods } = useFoods()
   const [activeCategory, setActiveCategory] = useState('全部')
+  const [activeUploader, setActiveUploader] = useState('全部')
   const [searchQuery, setSearchQuery] = useState('')
-  const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
 
-  const loadData = useCallback(async () => {
-    setLoading(true)
-    const [foodsData, catsData] = await Promise.all([
-      fetchFoods(activeCategory, searchQuery),
-      fetchCategories()
-    ])
-    setFoods(foodsData)
-    setCategories(catsData)
-    setLoading(false)
-  }, [activeCategory, searchQuery])
-
+  // 首次加载
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadFoods()
+  }, [loadFoods])
 
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value)
-  }
+  // 从缓存中过滤
+  const filteredFoods = filterFoods(activeCategory, searchQuery).filter(f => {
+    if (activeUploader === '全部') return true
+    const uploader = f.uploader || ''
+    return uploader.includes(activeUploader)
+  })
 
   return (
     <motion.div
@@ -51,7 +49,7 @@ export default function HomePage() {
             美食库
           </h1>
           <p className="text-ios-text-secondary text-base sm:text-lg">
-            {foods.length} 道美食等你发现
+            {filteredFoods.length} 道美食等你发现
           </p>
         </motion.div>
 
@@ -69,7 +67,7 @@ export default function HomePage() {
                 type="text"
                 placeholder="搜索美食..."
                 value={searchQuery}
-                onChange={handleSearch}
+                onChange={e => setSearchQuery(e.target.value)}
                 className="ios-input pl-11 pr-4"
               />
               {searchQuery && (
@@ -93,7 +91,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* 分类筛选 */}
+          {/* 筛选面板 */}
           <AnimatePresence>
             {showFilters && (
               <motion.div
@@ -103,7 +101,31 @@ export default function HomePage() {
                 transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-wrap gap-2 mt-4">
+                {/* 上传者筛选 */}
+                <div className="mt-4 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-ios-text-secondary" />
+                    <span className="text-sm font-medium text-ios-text">上传者</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {UPLOADER_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setActiveUploader(opt.value)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                          activeUploader === opt.value
+                            ? 'bg-warm-orange text-white shadow-md'
+                            : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 分类筛选 */}
+                <div className="flex flex-wrap gap-2">
                   {categories.map(cat => (
                     <button
                       key={cat}
@@ -128,7 +150,7 @@ export default function HomePage() {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 text-warm-orange animate-spin" />
           </div>
-        ) : foods.length === 0 ? (
+        ) : filteredFoods.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -142,7 +164,7 @@ export default function HomePage() {
             className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5"
           >
             <AnimatePresence mode="popLayout">
-              {foods.map((food, i) => (
+              {filteredFoods.map((food, i) => (
                 <FoodCard
                   key={food.id}
                   food={food}

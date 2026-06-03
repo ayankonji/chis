@@ -2,12 +2,28 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Shuffle, Bookmark, Sparkles, User, Filter, X } from 'lucide-react'
-import { fetchPity, updatePity, createDrawLog } from '../utils/api'
+import { fetchPity, updatePity, createDrawLog, fetchFoodImage } from '../utils/api'
 import { calculateGachaDistribution, performGacha, TIER_CONFIG } from '../utils/gacha'
 import { getDeviceId, getDeviceName } from '../utils/device'
 import { useFoods } from '../context/FoodsContext'
 import GachaCard from '../components/GachaCard'
 import GachaProbabilityPanel from '../components/GachaProbabilityPanel'
+
+// 卡池中的图片懒加载组件
+function SpinCardImage({ foodId, className = '', style = {} }) {
+  const [src, setSrc] = useState(null)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!foodId) return
+    fetchFoodImage(foodId).then(img => {
+      if (img) setSrc(img)
+    })
+  }, [foodId])
+
+  if (!src) return <div ref={ref} className={`bg-ios-gray-5 animate-pulse ${className}`} style={style} />
+  return <img ref={ref} src={src} alt="" className={className} style={style} />
+}
 
 // 判断是否PC端
 function useIsPC() {
@@ -168,6 +184,10 @@ export default function DrawPage() {
     const { sequence, winnerIndex } = buildSpinSequence(foodsWithDist, winner, isPC)
     setSpinItems(sequence)
     setWinnerIndex(winnerIndex)
+
+    // 4.5 预加载卡池中所有唯一图片（并行，不阻塞动画）
+    const uniqueIds = [...new Set(sequence.map(f => f.id))]
+    Promise.all(uniqueIds.map(id => fetchFoodImage(id)))
 
     // 5. 等待动画完成（7秒）
     await new Promise(r => setTimeout(r, 7200))
@@ -524,7 +544,7 @@ function PCSpinStrip({ items, winnerIndex }) {
               }}
             >
               <div className="relative w-full h-32 overflow-hidden">
-                <img src={food.image} alt="" className="w-full h-full object-cover" />
+                <SpinCardImage foodId={food.id} className="w-full h-full object-cover" />
                 <span className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded text-white font-bold" style={{ background: cfg.gradient }}>
                   {cfg.label}
                 </span>
@@ -592,7 +612,7 @@ function MobileSpinStrip({ items, winnerIndex }) {
                 boxShadow: cfg.borderShadow,
               }}
             >
-              <img src={food.image} alt="" className="w-16 h-16 rounded object-cover flex-shrink-0" />
+              <SpinCardImage foodId={food.id} className="w-16 h-16 rounded object-cover flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-ios-text truncate">{food.name}</p>
                 <p className="text-xs text-ios-text-secondary">¥{food.price} · {food.calories}kcal</p>

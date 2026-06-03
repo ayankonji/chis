@@ -30,27 +30,45 @@ export default function DrawPage() {
   const [saved, setSaved] = useState(false)
   const [showProbPanel, setShowProbPanel] = useState(false)
   const [spinItems, setSpinItems] = useState([])
+  const [winnerIndex, setWinnerIndex] = useState(-1) // winner 在序列中的位置
   const [uploaderFilter, setUploaderFilter] = useState('全部')
   const [showFilter, setShowFilter] = useState(false)
-  
+
   // 音效相关状态
   const [showNailongEasterEgg, setShowNailongEasterEgg] = useState(false)
-  const audioRef = useRef(null)
-  const nailongAudioRef = useRef(null)
+  const openAudioRef = useRef(null)      // 开箱音效
+  const scrollAudioRef = useRef(null)    // 滚动条带音效
+  const nailongAudioRef = useRef(null)   // 奶龙音效
 
   useEffect(() => {
     if (foods.length === 0) loadFoods()
   }, [foods.length, loadFoods])
 
-  // 播放CS2开箱音效
-  const playCsgoSound = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(e => console.warn('音效播放失败:', e))
+  // 播放开箱音效
+  const playOpenSound = useCallback(() => {
+    if (openAudioRef.current) {
+      openAudioRef.current.currentTime = 0
+      openAudioRef.current.play().catch(e => console.warn('开箱音效播放失败:', e))
     }
   }, [])
 
-  // 播放奶龙音效
+  // 播放滚动条带音效
+  const playScrollSound = useCallback(() => {
+    if (scrollAudioRef.current) {
+      scrollAudioRef.current.currentTime = 0
+      scrollAudioRef.current.play().catch(e => console.warn('滚动音效播放失败:', e))
+    }
+  }, [])
+
+  // 停止滚动音效
+  const stopScrollSound = useCallback(() => {
+    if (scrollAudioRef.current) {
+      scrollAudioRef.current.pause()
+      scrollAudioRef.current.currentTime = 0
+    }
+  }, [])
+
+  // 播放奶龙音效（循环）
   const playNailongSound = useCallback(() => {
     if (nailongAudioRef.current) {
       nailongAudioRef.current.currentTime = 0
@@ -71,18 +89,27 @@ export default function DrawPage() {
     ? foods
     : foods.filter(f => (f.uploader || '').includes(uploaderFilter))
 
-  // 构造CS开箱式滚动序列
+  /**
+   * 构造CS开箱式滚动序列
+   *
+   * 核心设计：
+   *   - 总共 80 张卡（PC端）或 60 张卡（手机端）
+   *   - winner 放在序列的 倒数第 10 张左右的位置
+   *   - winner 之后继续添加随机卡片，模拟"无穷无尽"的效果
+   *   - 动画停在 winner 位置，但视觉上左右都有大量卡片
+   *   - 按 1:3:5 比例（金:银:铜）填充所有卡片
+   */
   const buildSpinSequence = (allFoods, winner, isPCMode) => {
-    const totalCards = isPCMode ? 60 : 50
-    const sequence = []
+    const totalCards = isPCMode ? 80 : 60
+    const winnerPos = totalCards - 10 // winner 在倒数第 10 个位置
 
     // 按品级分组
     const goldFoods = allFoods.filter(f => f.gacha_tier === 'gold')
     const silverFoods = allFoods.filter(f => f.gacha_tier === 'silver')
     const bronzeFoods = allFoods.filter(f => f.gacha_tier === 'bronze')
 
-    // 构造滚动序列：按 1:3:5 比例
-    for (let i = 0; i < totalCards - 1; i++) {
+    // 随机选一张卡（按 1:3:5 品级比例）
+    const pickRandom = () => {
       const rand = Math.random()
       let pool
       if (rand < 0.1 && goldFoods.length > 0) {
@@ -92,12 +119,20 @@ export default function DrawPage() {
       } else {
         pool = bronzeFoods.length > 0 ? bronzeFoods : allFoods
       }
-      sequence.push(pool[Math.floor(Math.random() * pool.length)])
+      return pool[Math.floor(Math.random() * pool.length)]
     }
 
-    // 最后一张是中奖卡
-    sequence.push(winner)
-    return sequence
+    const sequence = []
+    for (let i = 0; i < totalCards; i++) {
+      if (i === winnerPos) {
+        // winner 精确放在这个位置
+        sequence.push(winner)
+      } else {
+        sequence.push(pickRandom())
+      }
+    }
+
+    return { sequence, winnerIndex: winnerPos }
   }
 
   const handleDraw = useCallback(async () => {
@@ -107,34 +142,41 @@ export default function DrawPage() {
     setSaved(false)
     setDrawPhase('spinning')
 
-    // 播放CS2开箱音效
-    playCsgoSound()
+    // 1. 立即播放开箱音效
+    playOpenSound()
 
-    // 1. 计算概率分布并执行抽卡
+    // 2. 播放滚动条带音效（与7秒动画对齐）
+    playScrollSound()
+
+    // 3. 计算概率分布并执行抽卡
     const foodsWithDist = calculateGachaDistribution(filteredFoods)
     const deviceId = getDeviceId()
     const deviceName = getDeviceName()
     const pityData = await fetchPity(deviceId)
     const { result: winner, newPity } = performGacha(foodsWithDist, pityData)
 
-    // 2. 构造CS开箱式滚动序列
-    const sequence = buildSpinSequence(foodsWithDist, winner, isPC)
+    // 4. 构造CS开箱式滚动序列
+    const { sequence, winnerIndex } = buildSpinSequence(foodsWithDist, winner, isPC)
     setSpinItems(sequence)
+    setWinnerIndex(winnerIndex)
 
-    // 3. 等待动画完成（7秒）
+    // 5. 等待动画完成（7秒）
     await new Promise(r => setTimeout(r, 7200))
 
-    // 4. 展示结果
+    // 6. 停止滚动音效
+    stopScrollSound()
+
+    // 7. 展示结果
     setResult(winner)
     setDrawPhase('reveal')
 
-    // 5. 检查是否是奶龙彩蛋
+    // 8. 检查是否是奶龙彩蛋
     if (winner.name === '奶龙') {
       setShowNailongEasterEgg(true)
       playNailongSound()
     }
 
-    // 6. 保存保底计数 + 抽卡记录
+    // 9. 保存保底计数 + 抽卡记录
     try {
       await updatePity(deviceId, { ...newPity, device_name: deviceName || '匿名用户' })
       await createDrawLog({
@@ -150,7 +192,7 @@ export default function DrawPage() {
 
     await new Promise(r => setTimeout(r, 300))
     setIsDrawing(false)
-  }, [filteredFoods, isDrawing, isPC, playCsgoSound, playNailongSound])
+  }, [filteredFoods, isDrawing, isPC, playOpenSound, playScrollSound, stopScrollSound, playNailongSound])
 
   const handleSave = () => {
     const savedList = JSON.parse(localStorage.getItem('chis_saved') || '[]')
@@ -177,9 +219,6 @@ export default function DrawPage() {
       transition={{ duration: 0.4 }}
       className="fixed inset-0 overflow-hidden"
     >
-      {/* 音频元素 */}
-      <audio ref={audioRef} src="/chis/sounds/csgo-case-open.mp3" preload="auto" />
-      <audio ref={nailongAudioRef} src="/chis/sounds/nailong-laugh.wav" preload="auto" />
       {/* 背景层 */}
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse at top, #FFF9F3 0%, #F5EFE6 100%)',
@@ -193,6 +232,11 @@ export default function DrawPage() {
         <CornerDecor position="bottom-left" />
         <CornerDecor position="bottom-right" />
       </div>
+
+      {/* 音频元素 */}
+      <audio ref={openAudioRef} src={`${import.meta.env.BASE_URL}sounds/open.mp3`} preload="auto" />
+      <audio ref={scrollAudioRef} src={`${import.meta.env.BASE_URL}sounds/scroll.mp3`} preload="auto" />
+      <audio ref={nailongAudioRef} src={`${import.meta.env.BASE_URL}sounds/nailong-laugh.wav`} preload="auto" loop />
 
       {/* 内容层 */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-8">
@@ -285,9 +329,9 @@ export default function DrawPage() {
               className="w-full flex justify-center"
             >
               {isPC ? (
-                <PCSpinStrip items={spinItems} />
+                <PCSpinStrip items={spinItems} winnerIndex={winnerIndex} />
               ) : (
-                <MobileSpinStrip items={spinItems} />
+                <MobileSpinStrip items={spinItems} winnerIndex={winnerIndex} />
               )}
             </motion.div>
           )}
@@ -337,9 +381,11 @@ export default function DrawPage() {
                     whileTap={{ scale: 0.95 }}
                     onClick={() => { 
                       setDrawPhase('idle'); 
-                      setSpinItems([])
+                      setSpinItems([]); 
+                      setWinnerIndex(-1)
                       setShowNailongEasterEgg(false)
                       stopNailongSound()
+                      stopScrollSound()
                     }}
                     className="ios-button px-8 py-3"
                   >
@@ -353,67 +399,47 @@ export default function DrawPage() {
         </AnimatePresence>
       </div>
 
+      {/* 奶龙彩蛋 */}
+      <AnimatePresence>
+        {showNailongEasterEgg && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center"
+            onClick={closeNailongEasterEgg}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, rotate: 180 }}
+              transition={{ type: 'spring', damping: 15, stiffness: 200 }}
+              className="relative z-10 text-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="text-8xl mb-4 animate-bounce">🎉</div>
+              <h2 className="text-4xl font-bold text-white mb-2" style={{ textShadow: '0 0 20px rgba(255,215,0,0.8)' }}>
+                恭喜！抽到了奶龙！
+              </h2>
+              <p className="text-xl text-white/80 mb-6">这是最稀有的隐藏彩蛋！</p>
+              <button
+                onClick={closeNailongEasterEgg}
+                className="ios-button px-8 py-3 text-lg"
+              >
+                太棒了！
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 概率公示面板 */}
       <GachaProbabilityPanel
         isOpen={showProbPanel}
         onClose={() => setShowProbPanel(false)}
         foods={filteredFoods}
       />
-
-      {/* 奶龙彩蛋弹窗 */}
-      <AnimatePresence>
-        {showNailongEasterEgg && result && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={closeNailongEasterEgg}
-          >
-            {/* 背景虚化 */}
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-            
-            {/* 弹窗内容 */}
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-sm bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* 关闭按钮 */}
-              <button
-                onClick={closeNailongEasterEgg}
-                className="absolute top-4 left-4 z-10 p-2 rounded-full bg-black/20 text-white/80 hover:bg-black/30 hover:text-white transition-all duration-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-
-              {/* 奶龙图片 */}
-              <div className="aspect-square overflow-hidden">
-                <img
-                  src={result.image}
-                  alt="奶龙"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* 底部信息 */}
-              <div className="p-6 text-center">
-                <h3 className="text-2xl font-bold text-ios-text mb-2">🎉 恭喜抽到奶龙！</h3>
-                <p className="text-ios-text-secondary mb-4">奶龙正在开心地大笑呢～</p>
-                <button
-                  onClick={closeNailongEasterEgg}
-                  className="ios-button px-6 py-2"
-                >
-                  收下了
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   )
 }
@@ -421,17 +447,23 @@ export default function DrawPage() {
 // ============================================
 // PC端：横向滚动条带（CS开箱风格）
 // ============================================
-function PCSpinStrip({ items }) {
+function PCSpinStrip({ items, winnerIndex }) {
   const stripRef = useRef(null)
   const CARD_W = 140
   const CARD_GAP = 12
   const CARD_TOTAL = CARD_W + CARD_GAP
 
   useEffect(() => {
-    if (!stripRef.current || items.length === 0) return
+    if (!stripRef.current || items.length === 0 || winnerIndex < 0) return
     const el = stripRef.current
     const containerCenter = el.parentElement.offsetWidth / 2
-    const targetX = (items.length - 1) * CARD_TOTAL + CARD_W / 2 - containerCenter
+
+    // 计算 winner 卡片中心的位置
+    // winner 的左边缘 = winnerIndex * CARD_TOTAL
+    // winner 的中心 = winnerIndex * CARD_TOTAL + CARD_W / 2
+    // 需要让这个中心对齐容器中心，所以偏移 = winnerCenter - containerCenter
+    const winnerCenter = winnerIndex * CARD_TOTAL + CARD_W / 2
+    const targetX = winnerCenter - containerCenter
 
     // CS开箱效果：先快后慢，7秒缓动
     el.style.transition = 'transform 7s cubic-bezier(0.10, 0.90, 0.20, 1)'
@@ -441,7 +473,7 @@ function PCSpinStrip({ items }) {
       el.style.transition = 'none'
       el.style.transform = 'translateX(0)'
     }
-  }, [items])
+  }, [items, winnerIndex])
 
   return (
     <div className="relative overflow-hidden rounded-ios-lg bg-white/30 backdrop-blur-md" style={{ width: '90vw', maxWidth: '900px', height: '320px' }}>
@@ -488,17 +520,20 @@ function PCSpinStrip({ items }) {
 // ============================================
 // 手机端：竖直滚动条带
 // ============================================
-function MobileSpinStrip({ items }) {
+function MobileSpinStrip({ items, winnerIndex }) {
   const containerRef = useRef(null)
   const CARD_H = 110
   const CARD_GAP = 12
   const CARD_TOTAL = CARD_H + CARD_GAP
 
   useEffect(() => {
-    if (!containerRef.current || items.length === 0) return
+    if (!containerRef.current || items.length === 0 || winnerIndex < 0) return
     const el = containerRef.current
     const containerCenter = el.parentElement.offsetHeight / 2
-    const targetY = (items.length - 1) * CARD_TOTAL + CARD_H / 2 - containerCenter
+
+    // 计算 winner 卡片中心的位置
+    const winnerCenter = winnerIndex * CARD_TOTAL + CARD_H / 2
+    const targetY = winnerCenter - containerCenter
 
     el.style.transition = 'transform 7s cubic-bezier(0.10, 0.90, 0.20, 1)'
     el.style.transform = `translateY(-${targetY}px)`
@@ -507,7 +542,7 @@ function MobileSpinStrip({ items }) {
       el.style.transition = 'none'
       el.style.transform = 'translateY(0)'
     }
-  }, [items])
+  }, [items, winnerIndex])
 
   return (
     <div className="relative overflow-hidden rounded-ios-lg bg-white/30 backdrop-blur-md" style={{ width: '280px', height: '420px' }}>

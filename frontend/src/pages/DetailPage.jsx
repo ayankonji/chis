@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Flame, Candy, Thermometer, Trash2, Edit3, Loader2, Star } from 'lucide-react'
-import { fetchFood, removeFood } from '../utils/api'
+import { fetchFood, removeFood, fetchAllFoods, editFood } from '../utils/api'
 import { isAdminLoggedIn } from '../utils/admin'
-import { TIER_CONFIG } from '../utils/gacha'
+import { TIER_CONFIG, recalculateAndSaveTiers } from '../utils/gacha'
 import AdminLoginModal from '../components/AdminLoginModal'
 
 export default function DetailPage() {
@@ -27,10 +27,8 @@ export default function DetailPage() {
   // 需要管理员权限的操作
   const requireAdmin = (action) => {
     if (isAdminLoggedIn()) {
-      // 已登录，直接执行
       executeAction(action)
     } else {
-      // 需要登录
       setPendingAction(action)
       setShowAdminModal(true)
     }
@@ -42,6 +40,8 @@ export default function DetailPage() {
     } else if (action === 'delete') {
       if (!confirm('确定要删除这道美食吗？')) return
       await removeFood(id)
+      // 删除后自动重算品级和概率
+      await recalculateAndSaveTiers(fetchAllFoods, editFood)
       navigate('/')
     }
   }

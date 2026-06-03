@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Upload, Loader2, Flame, Candy, Thermometer, AlertCircle } from 'lucide-react'
-import { createFood, fetchFood, editFood } from '../utils/api'
+import { createFood, fetchFood, editFood, fetchAllFoods } from '../utils/api'
 import { isAdminLoggedIn } from '../utils/admin'
+import { recalculateAndSaveTiers } from '../utils/gacha'
+import { compressImage, blobToBase64 } from '../utils/image'
 import AdminLoginModal from '../components/AdminLoginModal'
 
 const CATEGORIES = ['中餐', '西餐', '日料', '韩料', '泰料', '甜点', '饮品', '轻食', '快餐', '其他']
@@ -17,6 +19,7 @@ export default function AddPage({ editMode = false }) {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [compressing, setCompressing] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
   const [errors, setErrors] = useState({})
   const [showAdminModal, setShowAdminModal] = useState(false)
@@ -72,25 +75,18 @@ export default function AddPage({ editMode = false }) {
     }
   }
 
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  }
-
   const handleImageChange = async (e) => {
     const file = e.target.files[0]
     if (!file) return
 
+    // 格式校验
     if (!ALLOWED_TYPES.includes(file.type)) {
       setErrors(prev => ({ ...prev, image: '仅支持 JPG 和 PNG 格式的图片' }))
       e.target.value = ''
       return
     }
 
+    // 大小校验
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
       setErrors(prev => ({ ...prev, image: `图片大小 ${sizeMB}MB 超过限制，最大允许 15MB` }))
@@ -103,11 +99,23 @@ export default function AddPage({ editMode = false }) {
     }
 
     try {
-      const base64 = await fileToBase64(file)
+      // 压缩图片（>500KB 的压缩到 ~500KB）
+      setCompressing(true)
+      let processedFile = file
+      if (file.size > 500 * 1024) {
+        processedFile = await compressImage(file, 500)
+        const originalKB = (file.size / 1024).toFixed(0)
+        const compressedKB = (processedFile.size / 1024).toFixed(0)
+        console.log(`[图片压缩] ${originalKB}KB → ${compressedKB}KB`)
+      }
+
+      const base64 = await blobToBase64(processedFile)
       setPreviewUrl(base64)
       setForm(prev => ({ ...prev, image: base64 }))
+      setCompressing(false)
     } catch {
-      setErrors(prev => ({ ...prev, image: '图片读取失败，请重试' }))
+      setCompressing(false)
+      setErrors(prev => ({ ...prev, image: '图片处理失败，请重试' }))
     }
   }
 
@@ -148,11 +156,19 @@ export default function AddPage({ editMode = false }) {
       image: form.image || previewUrl || '',
     }
 
-    if (editMode && id) {
-      await editFood(id, data)
-    } else {
-      await createFood(data)
+    try {
+      if (editMode && id) {
+        await editFood(id, data)
+      } else {
+        await createFood(data)
+      }
+
+      // 增删改后自动重算品级和概率
+      await recalculateAndSaveTiers(fetchAllFoods, editFood)
+    } catch (err) {
+      console.error('保存失败:', err)
     }
+
     setSaving(false)
     navigate('/')
   }
@@ -191,31 +207,30 @@ export default function AddPage({ editMode = false }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="min-h-screen pt-20 pb-12"
+      className="min-h-screen pt-16 sm:pt-20 pb-12"
     >
-      <div className="max-w-xl mx-auto px-4 sm:px-6">
-        {/* 头部 */}
+      <div className="max-w-lg mx-auto px-4 sm:px-6">
+        {/* 顶栏 */}
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
           className="flex items-center gap-3 mb-6"
         >
           <button
             onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-white shadow-ios flex items-center justify-center text-ios-text hover:shadow-ios-hover transition-all duration-300"
+            className="w-10 h-10 rounded-full bg-white shadow-ios flex items-center justify-center hover:shadow-ios-hover transition-all duration-300"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 text-ios-text" />
           </button>
-          <h1 className="text-2xl font-semibold text-ios-text">
-            {editMode ? '编辑美食' : '添加美食'}
+          <h1 className="text-xl font-semibold text-ios-text">
+            {editMode ? '编辑美食' : '添加新美食'}
           </h1>
         </motion.div>
 
         <motion.form
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
+          transition={{ delay: 0.1 }}
           onSubmit={handleSubmit}
           className="space-y-5"
         >
@@ -229,13 +244,18 @@ export default function AddPage({ editMode = false }) {
                   <button
                     type="button"
                     onClick={() => { setPreviewUrl(''); setForm(prev => ({ ...prev, image: '' })) }}
-                    className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-black/50 text-white text-xs backdrop-blur-md"
+                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                   >
-                    更换
+                    ×
                   </button>
                 </div>
+              ) : compressing ? (
+                <div className="w-full h-48 rounded-ios border-2 border-dashed border-ios-gray-4 bg-ios-gray-6 flex flex-col items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-warm-orange animate-spin mb-2" />
+                  <span className="text-sm text-ios-text-secondary">正在压缩图片...</span>
+                </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-ios-gray-4 rounded-ios cursor-pointer hover:border-warm-orange transition-colors">
+                <label className="flex flex-col items-center justify-center w-full h-48 rounded-ios border-2 border-dashed border-ios-gray-4 bg-ios-gray-6 cursor-pointer hover:border-warm-orange transition-colors">
                   <Upload className="w-8 h-8 text-ios-text-secondary mb-2" />
                   <span className="text-sm text-ios-text-secondary">点击上传图片</span>
                   <span className="text-xs text-ios-text-secondary mt-1">支持 JPG / PNG，最大 15MB</span>
@@ -327,7 +347,7 @@ export default function AddPage({ editMode = false }) {
           </div>
 
           {/* 提交按钮 */}
-          <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={saving} className="w-full ios-button py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed">
+          <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={saving || compressing} className="w-full ios-button py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed">
             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Upload className="w-5 h-5 mr-2" />{editMode ? '保存修改' : '添加美食'}</>}
           </motion.button>
         </motion.form>

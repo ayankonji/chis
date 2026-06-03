@@ -30,6 +30,13 @@ export async function fetchFoods(category = '全部', search = '') {
   return await res.json()
 }
 
+// 无条件获取全量食物（用于品级重算）
+export async function fetchAllFoods() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?select=*&order=created_at.desc`, { headers })
+  if (!res.ok) throw new Error('Failed to fetch all foods')
+  return await res.json()
+}
+
 export async function fetchFood(id) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?id=eq.${id}&select=*`, { headers })
   if (!res.ok) throw new Error('Failed to fetch food')
@@ -106,15 +113,25 @@ export async function fetchPity(deviceId) {
 export async function updatePity(deviceId, pityData) {
   const body = {
     device_id: deviceId,
-    ...pityData,
+    device_name: pityData.device_name || '匿名用户',
+    pulls_since_last_4star: pityData.pulls_since_last_4star || 0,
+    pulls_since_last_5star: pityData.pulls_since_last_5star || 0,
+    total_pulls: pityData.total_pulls || 0,
     updated_at: new Date().toISOString(),
   }
   const res = await fetch(`${SUPABASE_URL}/rest/v1/pity`, {
     method: 'POST',
-    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
+    headers: {
+      ...headers,
+      'Prefer': 'resolution=merge-duplicates,return=representation'
+    },
     body: JSON.stringify(body)
   })
-  if (!res.ok) throw new Error('Failed to update pity')
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('updatePity 失败:', res.status, errText)
+    throw new Error('Failed to update pity')
+  }
   const data = await res.json()
   return data[0] || data
 }
@@ -124,12 +141,23 @@ export async function updatePity(deviceId, pityData) {
 // ============================================
 
 export async function createDrawLog(logData) {
+  const body = {
+    device_id: logData.device_id,
+    device_name: logData.device_name || '匿名用户',
+    food_id: logData.food_id || null,
+    food_name: logData.food_name || '',
+    tier: logData.tier || 'bronze',
+  }
   const res = await fetch(`${SUPABASE_URL}/rest/v1/draw_log`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(logData)
+    body: JSON.stringify(body)
   })
-  if (!res.ok) throw new Error('Failed to create draw log')
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('createDrawLog 失败:', res.status, errText)
+    throw new Error(`Failed to create draw log: ${res.status}`)
+  }
   const data = await res.json()
   return data[0] || data
 }
@@ -141,6 +169,9 @@ export async function fetchDrawLogs(deviceId, limit = 20) {
   params.append('order', 'drawn_at.desc')
   params.append('limit', String(limit))
   const res = await fetch(`${SUPABASE_URL}/rest/v1/draw_log?${params}`, { headers })
-  if (!res.ok) return []
+  if (!res.ok) {
+    console.error('fetchDrawLogs 失败:', res.status)
+    return []
+  }
   return await res.json()
 }

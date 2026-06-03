@@ -1,7 +1,12 @@
 // ============================================
 // 抽卡概率算法模块
 // Softmax注意力分数 + 品级划分 + 保底机制
-// 品级优先读取数据库字段，仅兜底时用算法计算
+//
+// 核心逻辑：
+//   - score 越高（价格高/热量大）→ 品级越高（金卡）
+//   - 概率用 softmax(-score) 归一化 → score高的概率低（稀有难抽中）
+//   - 品级按 score 排名 1:3:6 分配（金:银:铜）
+//   - 数据库 gacha_tier 字段优先，仅当缺失时用算法兜底
 // ============================================
 
 // ---- 品级配置（含配色参数）----
@@ -51,6 +56,9 @@ const WEIGHTS = {
 // Softmax核心计算
 // ============================================
 
+/**
+ * 提取美食的综合评分（score 越高 = 越贵/越高热量 = 越稀有）
+ */
 function extractScore(food, maxPrice, maxCalories) {
   const priceNorm = maxPrice > 0 ? (food.price || 0) / maxPrice : 0
   const calNorm = maxCalories > 0 ? (food.calories || 0) / maxCalories : 0
@@ -67,27 +75,55 @@ function extractScore(food, maxPrice, maxCalories) {
   )
 }
 
-function softmax(scores, temperature = TEMPERATURE) {
-  const maxScore = Math.max(...scores)
-  const exps = scores.map(s => Math.exp((s - maxScore) * temperature))
+/**
+ * Softmax 归一化
+ * @param {number[]} scores - 输入分数
+ * @param {boolean} invert - 是否翻转（true = -score，让高分食物概率低）
+ */
+function softmax(scores, temperature = TEMPERATURE, invert = false) {
+  const s = invert ? scores.map(v => -v) : scores
+  const maxScore = Math.max(...s)
+  const exps = s.map(v => Math.exp((v - maxScore) * temperature))
   const sumExps = exps.reduce((a, b) => a + b, 0)
   return exps.map(e => e / sumExps)
 }
 
 // ============================================
-// 品级划分（兜底用：当数据库无品级时）
+// 品级划分（按 score 排名，1:3:6 比例）
+// score 越高 → 金卡（稀有）
 // ============================================
 
-function assignTiers(probabilities) {
-  const sorted = [...probabilities].sort((a, b) => a - b)
-  const n = sorted.length
-  const p25 = sorted[Math.floor(n * 0.25)] || sorted[0]
-  const p75 = sorted[Math.floor(n * 0.75)] || sorted[n - 1]
-  return probabilities.map(p => {
-    if (p <= p25) return 'gold'
-    if (p <= p75) return 'silver'
-    return 'bronze'
-  })
+/**
+ * 按 score 从高到低排序，按 1:3:6 分配品级
+ * @param {number[]} scores - 各食物的综合评分
+ * @returns {string[]} 品级数组 ['gold', 'silver', 'bronze', ...]
+ */
+function assignTiers(scores) {
+  const n = scores.length
+  if (n === 0) return []
+
+  // 创建 [index, score] 并按 score 降序排列
+  const indexed = scores.map((s, i) => ({ index: i, score: s }))
+  indexed.sort((a, b) => b.score - a.score)
+
+  // 按 1:3:6 比例计算各品级数量
+  const goldCount = Math.max(1, Math.round(n * 0.1))
+  const silverCount = Math.max(1, Math.round(n * 0.3))
+  // 剩下的全给铜卡
+
+  const tiers = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const rank = i // 0-based 排名（score 最高的排第0）
+    if (rank < goldCount) {
+      tiers[indexed[i].index] = 'gold'
+    } else if (rank < goldCount + silverCount) {
+      tiers[indexed[i].index] = 'silver'
+    } else {
+      tiers[indexed[i].index] = 'bronze'
+    }
+  }
+
+  return tiers
 }
 
 // ============================================
@@ -102,15 +138,17 @@ export function calculateGachaDistribution(foods) {
   const maxCalories = Math.max(...foods.map(f => f.calories || 0))
 
   const scores = foods.map(f => extractScore(f, maxPrice, maxCalories))
-  const probabilities = softmax(scores)
 
-  // 检查数据库是否已有品级
+  // 翻转 score 做 Softmax：score 高 → -score 低 → 概率低
+  const probabilities = softmax(scores, TEMPERATURE, true)
+
+  // 检查数据库是否已有品级（不是全部默认 bronze）
   const hasDbTiers = foods.some(f => f.gacha_tier && f.gacha_tier !== 'bronze')
 
-  // 如果数据库没有品级数据，用算法兜底
+  // 如果数据库没有品级数据，用算法兜底（按 score 排名分配）
   const tiers = hasDbTiers
     ? foods.map(f => f.gacha_tier || 'bronze')
-    : assignTiers(probabilities)
+    : assignTiers(scores)
 
   return foods.map((food, i) => ({
     ...food,
@@ -119,6 +157,48 @@ export function calculateGachaDistribution(foods) {
     gacha_score: scores[i],
     tier_config: TIER_CONFIG[tiers[i]],
   }))
+}
+
+// ============================================
+// 品级重算并写回数据库
+// 每次增删改食物后调用
+// ============================================
+
+/**
+ * 重新计算所有食物的品级和概率，并PATCH回数据库
+ * @param {Function} fetchFoodsFn - 获取全量食物的函数
+ * @param {Function} editFoodFn - 更新单个食物的函数
+ */
+export async function recalculateAndSaveTiers(fetchFoodsFn, editFoodFn) {
+  try {
+    const foods = await fetchFoodsFn()
+    if (!foods || foods.length === 0) return
+
+    const maxPrice = Math.max(...foods.map(f => f.price || 0))
+    const maxCalories = Math.max(...foods.map(f => f.calories || 0))
+
+    const scores = foods.map(f => extractScore(f, maxPrice, maxCalories))
+    const probabilities = softmax(scores, TEMPERATURE, true)
+    const tiers = assignTiers(scores)
+
+    // 批量 PATCH 每个食物的品级和概率
+    const updates = foods.map((food, i) =>
+      editFoodFn(food.id, {
+        gacha_tier: tiers[i],
+        gacha_prob: probabilities[i],
+      })
+    )
+
+    await Promise.allSettled(updates)
+    console.log('[gacha] 品级重算完成：', {
+      total: foods.length,
+      gold: tiers.filter(t => t === 'gold').length,
+      silver: tiers.filter(t => t === 'silver').length,
+      bronze: tiers.filter(t => t === 'bronze').length,
+    })
+  } catch (e) {
+    console.error('[gacha] 品级重算失败:', e)
+  }
 }
 
 // ============================================
@@ -191,27 +271,23 @@ export function generateProbabilityReport(foodWithDist, pityData) {
     tierStats[food.gacha_tier].totalProb += food.gacha_prob
   }
 
-  const sorted = [...foodWithDist].sort((a, b) => a.gacha_prob - b.gacha_prob)
-  const n = sorted.length
-  const p25Prob = sorted[Math.floor(n * 0.25)]?.gacha_prob || 0
-  const p75Prob = sorted[Math.floor(n * 0.75)]?.gacha_prob || 0
-
   return {
-    foods: foodWithDist.sort((a, b) => a.gacha_prob - b.gacha_prob),
+    foods: [...foodWithDist].sort((a, b) => b.gacha_score - a.gacha_score),
     tierStats,
     tierRanges: {
-      gold: `≤ ${(p25Prob * 100).toFixed(2)}%`,
-      silver: `${(p25Prob * 100).toFixed(2)}% ~ ${(p75Prob * 100).toFixed(2)}%`,
-      bronze: `> ${(p75Prob * 100).toFixed(2)}%`,
+      gold: 'Score 排名前 ~10%',
+      silver: 'Score 排名 10%~40%',
+      bronze: 'Score 排名 40%~100%',
     },
     pity: pityData || { pulls_since_last_4star: 0, pulls_since_last_5star: 0, total_pulls: 0 },
     formula: {
-      description: '基于注意力分数的Softmax概率分布',
+      description: '基于注意力分数的Softmax概率分布（高分稀有）',
       steps: [
         '1. 提取美食特征：价格、热量、甜度、辣度、稀有度',
-        '2. 加权求和得到注意力分数 score = Σ(wi × fi)',
-        '3. Softmax归一化：prob = exp(score × T) / Σexp(score_j × T)',
-        '4. 品级由数据库指定：金卡(稀有)、银卡(普通)、铜卡(常见)',
+        '2. 加权求和得到综合评分 score = Σ(wi × fi)',
+        '3. 评分越高 → 品级越高（金卡最稀有，铜卡最常见）',
+        '4. 概率用 softmax(-score × T) 归一化，评分高者概率低',
+        '5. 每次增删改食物后自动重算概率和品级',
       ],
       temperature: TEMPERATURE,
       weights: WEIGHTS,

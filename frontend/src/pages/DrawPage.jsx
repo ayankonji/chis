@@ -178,8 +178,8 @@ export default function DrawPage() {
       className="fixed inset-0 overflow-hidden"
     >
       {/* 音频元素 */}
-      <audio ref={audioRef} src="/sounds/csgo-case-open.mp3" preload="auto" />
-      <audio ref={nailongAudioRef} src="/sounds/nailong-laugh.wav" preload="auto" />
+      <audio ref={audioRef} src="/chis/sounds/csgo-case-open.mp3" preload="auto" />
+      <audio ref={nailongAudioRef} src="/chis/sounds/nailong-laugh.wav" preload="auto" />
       {/* 背景层 */}
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse at top, #FFF9F3 0%, #F5EFE6 100%)',

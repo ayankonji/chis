@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Upload, Loader2, Camera, Flame, Candy, Thermometer } from 'lucide-react'
+import { ArrowLeft, Upload, Loader2, Flame, Candy, Thermometer, AlertCircle } from 'lucide-react'
 import { createFood, fetchFood, editFood } from '../utils/api'
+import { calculateGachaDistribution } from '../utils/gacha'
 
 const CATEGORIES = ['中餐', '西餐', '日料', '韩料', '泰料', '甜点', '饮品', '轻食', '快餐', '其他']
-const TEMPERATURES = ['热', '冰', '常温']
+const TEMPERATURES = ['热', '冷', '常温']
+
+const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png']
 
 export default function AddPage({ editMode = false }) {
   const { id } = useParams()
@@ -13,6 +17,7 @@ export default function AddPage({ editMode = false }) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [errors, setErrors] = useState({})
   const [form, setForm] = useState({
     name: '',
     price: '',
@@ -50,9 +55,13 @@ export default function AddPage({ editMode = false }) {
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
+    // 清除该字段的错误
+    if (errors[field]) {
+      setErrors(prev => { const next = { ...prev }; delete next[field]; return next })
+    }
   }
 
-    const fileToBase64 = (file) => {
+  const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = () => resolve(reader.result)
@@ -63,33 +72,69 @@ export default function AddPage({ editMode = false }) {
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0]
-    if (file) {
-      try {
-        const base64 = await fileToBase64(file)
-        setPreviewUrl(base64)
-        setForm(prev => ({ ...prev, image: base64 }))
-      } catch {
-        // fallback to blob URL if base64 fails
-        const url = URL.createObjectURL(file)
-        setPreviewUrl(url)
-        setForm(prev => ({ ...prev, image: url }))
-      }
+    if (!file) return
+
+    // 格式校验
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setErrors(prev => ({ ...prev, image: '仅支持 JPG 和 PNG 格式的图片' }))
+      e.target.value = ''
+      return
+    }
+
+    // 大小校验
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
+      setErrors(prev => ({ ...prev, image: `图片大小 ${sizeMB}MB 超过限制，最大允许 15MB` }))
+      e.target.value = ''
+      return
+    }
+
+    // 清除错误
+    if (errors.image) {
+      setErrors(prev => { const next = { ...prev }; delete next.image; return next })
+    }
+
+    try {
+      const base64 = await fileToBase64(file)
+      setPreviewUrl(base64)
+      setForm(prev => ({ ...prev, image: base64 }))
+    } catch {
+      setErrors(prev => ({ ...prev, image: '图片读取失败，请重试' }))
     }
   }
 
-  const handleImageUrlChange = (e) => {
-    const url = e.target.value
-    setPreviewUrl(url)
-    setForm(prev => ({ ...prev, image: url }))
+  // 表单校验
+  const validate = () => {
+    const newErrors = {}
+
+    if (!form.name.trim()) {
+      newErrors.name = '请输入美食名称'
+    }
+
+    const price = Number(form.price)
+    if (!form.price && form.price !== 0) {
+      newErrors.price = '请输入售价'
+    } else if (isNaN(price) || price <= 0) {
+      newErrors.price = '售价必须为正数'
+    }
+
+    const calories = Number(form.calories)
+    if (form.calories && (isNaN(calories) || calories < 0)) {
+      newErrors.calories = '卡路里不能为负数'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.name.trim()) return
+    if (!validate()) return
+
     setSaving(true)
 
     const data = {
-      name: form.name,
+      name: form.name.trim(),
       price: Number(form.price) || 0,
       calories: Number(form.calories) || 0,
       sweetness: Number(form.sweetness),
@@ -156,62 +201,92 @@ export default function AddPage({ editMode = false }) {
             <label className="block text-sm font-medium text-ios-text mb-2">美食图片</label>
             <div className="relative">
               {previewUrl ? (
-                <div className="relative rounded-ios overflow-hidden aspect-video">
-                  <img src={previewUrl} alt="预览" className="w-full h-full object-cover" />
+                <div className="relative rounded-ios overflow-hidden">
+                  <img
+                    src={previewUrl}
+                    alt="预览"
+                    className="w-full h-48 object-cover"
+                  />
                   <button
                     type="button"
-                    onClick={() => { setPreviewUrl(''); setForm(p => ({ ...p, image: '' })) }}
-                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"
+                    onClick={() => {
+                      setPreviewUrl('')
+                      setForm(prev => ({ ...prev, image: '' }))
+                    }}
+                    className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-black/50 text-white text-xs backdrop-blur-md"
                   >
-                    ×
+                    更换
                   </button>
                 </div>
               ) : (
-                <label className="flex flex-col items-center justify-center w-full aspect-video rounded-ios border-2 border-dashed border-ios-gray-4 bg-ios-gray-6 cursor-pointer hover:border-ios-blue hover:bg-ios-blue/5 transition-all duration-300">
-                  <Camera className="w-8 h-8 text-ios-gray mb-2" />
+                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-ios-gray-4 rounded-ios cursor-pointer hover:border-warm-orange transition-colors">
+                  <Upload className="w-8 h-8 text-ios-text-secondary mb-2" />
                   <span className="text-sm text-ios-text-secondary">点击上传图片</span>
-                  <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                  <span className="text-xs text-ios-text-secondary mt-1">支持 JPG / PNG，最大 15MB</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
                 </label>
               )}
-            </div>
-            {!previewUrl && (
-              <div className="mt-2">
+              {/* 已有图片时的文件选择 */}
+              {previewUrl && (
                 <input
-                  type="text"
-                  placeholder="或输入图片 URL"
-                  value={typeof form.image === 'string' ? form.image : ''}
-                  onChange={handleImageUrlChange}
-                  className="ios-input text-sm"
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  id="image-replace"
+                  onChange={handleImageChange}
                 />
-              </div>
+              )}
+            </div>
+            {errors.image && (
+              <p className="flex items-center gap-1 mt-2 text-sm text-ios-red">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {errors.image}
+              </p>
             )}
           </div>
 
           {/* 名称 */}
           <div>
-            <label className="block text-sm font-medium text-ios-text mb-2">美食名称 *</label>
+            <label className="block text-sm font-medium text-ios-text mb-2">美食名称</label>
             <input
               type="text"
-              required
-              placeholder="例如：红烧肉"
+              placeholder="红烧肉"
               value={form.name}
               onChange={e => handleChange('name', e.target.value)}
-              className="ios-input"
+              className={`ios-input ${errors.name ? 'border-ios-red' : ''}`}
             />
+            {errors.name && (
+              <p className="flex items-center gap-1 mt-1.5 text-sm text-ios-red">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {errors.name}
+              </p>
+            )}
           </div>
 
-          {/* 价格和热量 */}
+          {/* 价格和卡路里 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-ios-text mb-2">价格 (¥)</label>
+              <label className="block text-sm font-medium text-ios-text mb-2">售价 (¥)</label>
               <input
                 type="number"
-                min="0"
+                min="0.01"
+                step="0.01"
                 placeholder="38"
                 value={form.price}
                 onChange={e => handleChange('price', e.target.value)}
-                className="ios-input"
+                className={`ios-input ${errors.price ? 'border-ios-red' : ''}`}
               />
+              {errors.price && (
+                <p className="flex items-center gap-1 mt-1.5 text-xs text-ios-red">
+                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                  {errors.price}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-ios-text mb-2">热量 (kcal)</label>
@@ -221,8 +296,14 @@ export default function AddPage({ editMode = false }) {
                 placeholder="520"
                 value={form.calories}
                 onChange={e => handleChange('calories', e.target.value)}
-                className="ios-input"
+                className={`ios-input ${errors.calories ? 'border-ios-red' : ''}`}
               />
+              {errors.calories && (
+                <p className="flex items-center gap-1 mt-1.5 text-xs text-ios-red">
+                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                  {errors.calories}
+                </p>
+              )}
             </div>
           </div>
 
@@ -312,7 +393,7 @@ export default function AddPage({ editMode = false }) {
             <label className="block text-sm font-medium text-ios-text mb-2">简介</label>
             <textarea
               rows={3}
-              placeholder="简单描述一下这道美食..."
+              placeholder="简单描述一下这道美食.."
               value={form.description}
               onChange={e => handleChange('description', e.target.value)}
               className="ios-input resize-none"
@@ -323,7 +404,7 @@ export default function AddPage({ editMode = false }) {
           <motion.button
             whileTap={{ scale: 0.97 }}
             type="submit"
-            disabled={saving || !form.name.trim()}
+            disabled={saving}
             className="w-full ios-button py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (

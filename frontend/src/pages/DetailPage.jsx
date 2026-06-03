@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Flame, Candy, Thermometer, Trash2, Edit3, Loader2 } from 'lucide-react'
+import { ArrowLeft, Flame, Candy, Thermometer, Trash2, Edit3, Loader2, Star } from 'lucide-react'
 import { fetchFood, removeFood } from '../utils/api'
+import { isAdminLoggedIn } from '../utils/admin'
+import { TIER_CONFIG } from '../utils/gacha'
+import AdminLoginModal from '../components/AdminLoginModal'
 
 export default function DetailPage() {
   const { id } = useParams()
@@ -10,6 +13,8 @@ export default function DetailPage() {
   const [food, setFood] = useState(null)
   const [loading, setLoading] = useState(true)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [showAdminModal, setShowAdminModal] = useState(false)
+  const [pendingAction, setPendingAction] = useState(null) // 'edit' | 'delete'
 
   useEffect(() => {
     setLoading(true)
@@ -19,10 +24,34 @@ export default function DetailPage() {
     })
   }, [id])
 
-  const handleDelete = async () => {
-    if (!confirm('确定要删除这道美食吗？')) return
-    await removeFood(id)
-    navigate('/')
+  // 需要管理员权限的操作
+  const requireAdmin = (action) => {
+    if (isAdminLoggedIn()) {
+      // 已登录，直接执行
+      executeAction(action)
+    } else {
+      // 需要登录
+      setPendingAction(action)
+      setShowAdminModal(true)
+    }
+  }
+
+  const executeAction = async (action) => {
+    if (action === 'edit') {
+      navigate(`/edit/${food.id}`)
+    } else if (action === 'delete') {
+      if (!confirm('确定要删除这道美食吗？')) return
+      await removeFood(id)
+      navigate('/')
+    }
+  }
+
+  const handleAdminSuccess = () => {
+    setShowAdminModal(false)
+    if (pendingAction) {
+      executeAction(pendingAction)
+      setPendingAction(null)
+    }
   }
 
   if (loading) {
@@ -44,10 +73,14 @@ export default function DetailPage() {
 
   const tempConfig = {
     '热': { class: 'tag-hot', color: '#D85A38' },
-    '冰': { class: 'tag-cold', color: '#5AC8FA' },
+    '冷': { class: 'tag-cold', color: '#5AC8FA' },
     '常温': { class: 'tag-warm', color: '#FF7F32' },
   }
   const temp = tempConfig[food.temperature] || tempConfig['常温']
+
+  // 品级信息（如果数据库中有 gacha_tier 字段）
+  const tier = food.gacha_tier || 'bronze'
+  const tierCfg = TIER_CONFIG[tier]
 
   return (
     <motion.div
@@ -86,22 +119,24 @@ export default function DetailPage() {
           <ArrowLeft className="w-5 h-5" />
         </motion.button>
 
-        {/* 操作按钮 */}
+        {/* 操作按钮（需管理员权限） */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.3 }}
           className="absolute top-4 right-4 flex gap-2"
         >
-          <Link
-            to={`/edit/${food.id}`}
+          <button
+            onClick={() => requireAdmin('edit')}
             className="w-10 h-10 rounded-full glass flex items-center justify-center text-white hover:bg-white/90 hover:text-ios-text transition-all duration-300"
+            title="编辑（需要管理员权限）"
           >
             <Edit3 className="w-4 h-4" />
-          </Link>
+          </button>
           <button
-            onClick={handleDelete}
+            onClick={() => requireAdmin('delete')}
             className="w-10 h-10 rounded-full glass flex items-center justify-center text-white hover:bg-brick-red/90 transition-all duration-300"
+            title="删除（需要管理员权限）"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -114,9 +149,21 @@ export default function DetailPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <span className="inline-block px-3 py-1 rounded-lg text-xs font-medium bg-white/20 backdrop-blur-md text-white mb-2">
-              {food.category}
-            </span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-block px-3 py-1 rounded-lg text-xs font-medium bg-white/20 backdrop-blur-md text-white">
+                {food.category}
+              </span>
+              {/* 品级角标 */}
+              {food.gacha_tier && (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-white"
+                  style={{ background: tierCfg?.gradient }}
+                >
+                  <Star className="w-3 h-3 fill-current" />
+                  {tierCfg?.name} · {tierCfg?.label}
+                </span>
+              )}
+            </div>
             <h1 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
               {food.name}
             </h1>
@@ -150,6 +197,37 @@ export default function DetailPage() {
             <RatingBar label="辣度" value={food.spiciness} icon={<Flame className="w-4 h-4" />} color="bg-brick-red" />
           </div>
 
+          {/* 品级信息 */}
+          {food.gacha_tier && (
+            <div
+              className="mb-6 p-4 rounded-ios-sm"
+              style={{
+                border: `1.5px solid ${tierCfg?.borderColor}40`,
+                background: `${tierCfg?.borderColor}08`,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ background: tierCfg?.gradient }}
+                  >
+                    <Star className="w-4 h-4 text-white fill-current" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-ios-text">{tierCfg?.name} · {tierCfg?.label}</p>
+                    <p className="text-xs text-ios-text-secondary">抽卡品级</p>
+                  </div>
+                </div>
+                {food.gacha_prob > 0 && (
+                  <span className="text-lg font-bold text-ios-text">
+                    {(food.gacha_prob * 100).toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 描述 */}
           {food.description && (
             <div className="pt-4 border-t border-ios-gray-5">
@@ -174,6 +252,13 @@ export default function DetailPage() {
           </Link>
         </motion.div>
       </div>
+
+      {/* 管理员登录弹窗 */}
+      <AdminLoginModal
+        isOpen={showAdminModal}
+        onClose={() => { setShowAdminModal(false); setPendingAction(null) }}
+        onSuccess={handleAdminSuccess}
+      />
     </motion.div>
   )
 }

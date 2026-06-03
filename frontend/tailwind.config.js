@@ -39,6 +39,16 @@ export default {
         'ios-gray-4': '#D1D1D6',
         'ios-gray-5': '#E8DFD5',
         'ios-gray-6': '#F5EFE6',
+        // 品级配色
+        'gacha-gold': '#FFD700',
+        'gacha-gold-dark': '#FFA500',
+        'gacha-gold-light': '#FFEC8B',
+        'gacha-silver': '#C0C0C0',
+        'gacha-silver-dark': '#A8A8A8',
+        'gacha-silver-light': '#E8E8E8',
+        'gacha-bronze': '#CD7F32',
+        'gacha-bronze-dark': '#8B5A2B',
+        'gacha-bronze-light': '#E8A862',
       },
       borderRadius: {
         'ios': '20px',
@@ -51,6 +61,9 @@ export default {
         'ios-hover': '0 12px 40px rgba(0, 0, 0, 0.15)',
         'ios-inner': 'inset 0 1px 2px rgba(255, 255, 255, 0.8), inset 0 -1px 2px rgba(0, 0, 0, 0.05)',
         'ios-button': '0 2px 8px rgba(0, 122, 255, 0.3)',
+        'gacha-gold': '0 0 20px rgba(255, 215, 0, 0.5)',
+        'gacha-silver': '0 0 15px rgba(192, 192, 192, 0.4)',
+        'gacha-bronze': '0 0 10px rgba(205, 127, 50, 0.3)',
       },
       transitionTimingFunction: {
         'ios': 'cubic-bezier(0.4, 0.0, 0.2, 1)',
@@ -59,7 +72,8 @@ export default {
       animation: {
         'shimmer': 'shimmer 3s ease-in-out infinite',
         'float': 'float 6s ease-in-out infinite',
-        'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
+        'pulse-soft': 'pulse-soft 2s ease-in-infinite',
+        'gacha-glow': 'gacha-glow 2s ease-in-out infinite',
       },
       keyframes: {
         shimmer: {
@@ -73,6 +87,10 @@ export default {
         'pulse-soft': {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.7' },
+        },
+        'gacha-glow': {
+          '0%, 100%': { boxShadow: '0 0 15px rgba(255, 215, 0, 0.3)' },
+          '50%': { boxShadow: '0 0 30px rgba(255, 215, 0, 0.6)' },
         },
       },
     },

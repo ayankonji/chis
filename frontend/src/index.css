@@ -132,6 +132,15 @@
     box-shadow: 0 0 0 3px rgba(255, 127, 50, 0.1);
   }
 
+  .ios-input.border-ios-red {
+    border-color: #D85A38;
+  }
+
+  .ios-input.border-ios-red:focus {
+    border-color: #D85A38;
+    box-shadow: 0 0 0 3px rgba(216, 90, 56, 0.1);
+  }
+
   .tag-hot {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
     background: linear-gradient(135deg, #FFF5F0 0%, #FFE8D6 100%);
@@ -151,6 +160,64 @@
     background: linear-gradient(135deg, #FFF9F3 0%, #FFE8D6 100%);
     color: #FF7F32;
     border: 1px solid rgba(255, 127, 50, 0.2);
+  }
+
+  /* ============================================
+     品级卡片样式
+     ============================================ */
+
+  /* 金卡边框 + 光效 */
+  .tier-gold {
+    border: 3px solid #FFD700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.5), inset 0 0 15px rgba(255, 215, 0, 0.1);
+  }
+
+  /* 银卡边框 + 光效 */
+  .tier-silver {
+    border: 3px solid #C0C0C0;
+    box-shadow: 0 0 15px rgba(192, 192, 192, 0.4), inset 0 0 10px rgba(192, 192, 192, 0.1);
+  }
+
+  /* 铜卡边框 + 光效 */
+  .tier-bronze {
+    border: 2px solid #CD7F32;
+    box-shadow: 0 0 10px rgba(205, 127, 50, 0.3), inset 0 0 8px rgba(205, 127, 50, 0.1);
+  }
+
+  /* 金卡发光动画 */
+  .tier-gold-glow {
+    animation: gold-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes gold-glow {
+    0%, 100% {
+      box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), 0 0 40px rgba(255, 165, 0, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.7), 0 0 60px rgba(255, 165, 0, 0.4);
+    }
+  }
+
+  /* 品级渐变文字 */
+  .text-tier-gold {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-tier-silver {
+    background: linear-gradient(135deg, #C0C0C0, #E8E8E8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-tier-bronze {
+    background: linear-gradient(135deg, #CD7F32, #E8A862);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 

@@ -1,18 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shuffle, RotateCcw, Bookmark, Sparkles } from 'lucide-react'
-import { drawRandomFood, fetchFoods } from '../utils/api'
+import { Shuffle, RotateCcw, Bookmark, Sparkles, BarChart3 } from 'lucide-react'
+import { fetchFoods, fetchPity, updatePity } from '../utils/api'
+import { calculateGachaDistribution, performGacha, TIER_CONFIG } from '../utils/gacha'
+import { getDeviceId } from '../utils/device'
+import GachaCard from '../components/GachaCard'
+import GachaProbabilityPanel from '../components/GachaProbabilityPanel'
 
 export default function DrawPage() {
   const navigate = useNavigate()
   const [foods, setFoods] = useState([])
   const [result, setResult] = useState(null)
   const [isDrawing, setIsDrawing] = useState(false)
-  const [drawPhase, setDrawPhase] = useState('idle') // idle, flying, flipping, reveal
-  const [flipCards, setFlipCards] = useState([])
+  const [drawPhase, setDrawPhase] = useState('idle') // idle, spinning, reveal
   const [saved, setSaved] = useState(false)
+  const [showProbPanel, setShowProbPanel] = useState(false)
+  const [spinItems, setSpinItems] = useState([])
 
+  // 加载美食数据
   useEffect(() => {
     fetchFoods().then(setFoods)
   }, [])
@@ -20,31 +26,42 @@ export default function DrawPage() {
   const handleDraw = useCallback(async () => {
     if (isDrawing || foods.length === 0) return
     setIsDrawing(true)
-    setDrawPhase('flying')
     setResult(null)
     setSaved(false)
+    setDrawPhase('spinning')
 
-    // 飞入阶段
-    const tempCards = Array.from({ length: 8 }, (_, i) => ({
-      id: i,
-      food: foods[Math.floor(Math.random() * foods.length)],
-      x: (Math.random() - 0.5) * window.innerWidth,
-      y: (Math.random() - 0.5) * window.innerHeight,
-      rotation: Math.random() * 360,
-    }))
-    setFlipCards(tempCards)
+    // 计算概率分布
+    const foodsWithDist = calculateGachaDistribution(foods)
 
-    await new Promise(r => setTimeout(r, 600))
-    setDrawPhase('flipping')
+    // 获取保底计数
+    const deviceId = getDeviceId()
+    const pityData = await fetchPity(deviceId)
 
-    // 快速翻转阶段
-    await new Promise(r => setTimeout(r, 2500))
+    // 生成滚动展示序列（用于动画）
+    const spinCount = 18
+    const spinSequence = []
+    for (let i = 0; i < spinCount; i++) {
+      const randFood = foodsWithDist[Math.floor(Math.random() * foodsWithDist.length)]
+      spinSequence.push(randFood)
+    }
+    setSpinItems(spinSequence)
 
-    const winner = await drawRandomFood()
+    // 滚动动画
+    await new Promise(r => setTimeout(r, 2200))
+
+    // 执行真正的抽卡（带保底）
+    const { result: winner, newPity } = performGacha(foodsWithDist, pityData)
     setResult(winner)
     setDrawPhase('reveal')
 
-    await new Promise(r => setTimeout(r, 800))
+    // 保存保底计数到 Supabase
+    try {
+      await updatePity(deviceId, newPity)
+    } catch (e) {
+      console.warn('保底计数保存失败:', e)
+    }
+
+    await new Promise(r => setTimeout(r, 500))
     setIsDrawing(false)
   }, [foods, isDrawing])
 
@@ -56,6 +73,8 @@ export default function DrawPage() {
     }
     setSaved(true)
   }
+
+  const tierConfig = result ? TIER_CONFIG[result.gacha_tier] : null
 
   return (
     <motion.div
@@ -69,10 +88,7 @@ export default function DrawPage() {
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse at top, #FFF9F3 0%, #F5EFE6 100%)',
       }}>
-        {/* 毛玻璃背景 */}
         <div className="absolute inset-0 backdrop-blur-xl" style={{ background: 'rgba(255, 249, 243, 0.6)' }} />
-
-        {/* 动态胶卷装饰 */}
         <FilmStrip foods={foods} angle={-15} top="10%" speed={30} blur={2} scale={0.6} opacity={0.15} />
         <FilmStrip foods={foods} angle={10} top="60%" speed={40} blur={4} scale={0.4} opacity={0.1} direction="right" />
         <FilmStrip foods={foods} angle={-5} top="85%" speed={25} blur={1} scale={0.8} opacity={0.12} />
@@ -81,6 +97,7 @@ export default function DrawPage() {
       {/* 内容层 */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 pt-20 pb-8">
         <AnimatePresence mode="wait">
+          {/* 空闲状态 */}
           {drawPhase === 'idle' && (
             <motion.div
               key="idle"
@@ -110,196 +127,148 @@ export default function DrawPage() {
               </div>
 
               <p className="text-warm-gray text-sm mt-6">
-                美食库共 {foods.length} 道美食
+                美食库共 {foods.length} 道菜
               </p>
+
+              {/* 概率公示入口 */}
+              <button
+                onClick={() => setShowProbPanel(true)}
+                className="mt-4 flex items-center gap-1.5 mx-auto text-sm text-ios-text-secondary hover:text-warm-orange transition-colors"
+              >
+                <BarChart3 className="w-4 h-4" />
+                查看概率公示
+              </button>
             </motion.div>
           )}
 
-          {(drawPhase === 'flying' || drawPhase === 'flipping') && (
+          {/* 转盘滚动状态 */}
+          {drawPhase === 'spinning' && (
             <motion.div
-              key="drawing"
-              className="absolute inset-0 flex items-center justify-center"
+              key="spinning"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center"
             >
-              {flipCards.map((card, i) => (
+              <div className="relative w-72 sm:w-80 overflow-hidden rounded-ios-lg bg-white/50 backdrop-blur-md shadow-ios"
+                style={{ height: '380px' }}
+              >
+                {/* 顶部渐变遮罩 */}
+                <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-white/80 to-transparent z-10" />
+                {/* 底部渐变遮罩 */}
+                <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white/80 to-transparent z-10" />
+                {/* 中心选择指示器 */}
+                <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 bg-warm-orange/30 z-10" />
+
                 <motion.div
-                  key={card.id}
-                  initial={{
-                    x: card.x,
-                    y: card.y,
-                    rotate: card.rotation,
-                    scale: 0.3,
-                    opacity: 0,
-                  }}
-                  animate={drawPhase === 'flipping' ? {
-                    x: 0,
-                    y: 0,
-                    rotate: [0, 360, 720, 1080, 1440].map(r => r + i * 45),
-                    rotateX: [5, -5, 5, -5, 5],
-                    rotateY: [5, -5, 5, -5, 5],
-                    scale: [0.8, 1.1, 0.9, 1.05, 0.95],
-                    opacity: [0.8, 1, 0.8, 1, 0],
-                  } : {
-                    x: 0,
-                    y: 0,
-                    rotate: 0,
-                    rotateX: 5,
-                    rotateY: 5,
-                    scale: 0.9,
-                    opacity: 1,
-                  }}
-                  transition={drawPhase === 'flipping' ? {
-                    duration: 2.5,
-                    delay: i * 0.05,
-                    ease: 'easeInOut',
-                  } : {
-                    duration: 0.6,
-                    delay: i * 0.03,
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                  className="absolute w-40 sm:w-56 aspect-[3/4] rounded-[16px] overflow-hidden bg-white"
-                  style={{
-                    boxShadow: '0 12px 40px rgba(255, 127, 50, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1)',
-                    transform: 'perspective(1000px) rotateX(5deg) rotateY(5deg)',
-                  }}
+                  animate={{ y: [0, -(spinItems.length - 1) * 130] }}
+                  transition={{ duration: 2, ease: [0.2, 0.8, 0.3, 1] }}
+                  className="space-y-3 px-4 pt-40 pb-40"
                 >
-                  <img
-                    src={card.food.image}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+                  {spinItems.map((food, i) => (
+                    <div
+                      key={i}
+                      className="h-[120px] rounded-ios-sm overflow-hidden flex items-center gap-3 px-3"
+                      style={{
+                        border: `2px solid ${TIER_CONFIG[food.gacha_tier]?.borderColor || '#CD7F32'}`,
+                        background: 'white',
+                      }}
+                    >
+                      <img src={food.image} alt="" className="w-16 h-16 rounded object-cover flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-ios-text truncate">{food.name}</p>
+                        <p className="text-xs text-ios-text-secondary">{food.category}</p>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded text-white mt-1 inline-block"
+                          style={{ background: TIER_CONFIG[food.gacha_tier]?.gradient }}
+                        >
+                          {TIER_CONFIG[food.gacha_tier]?.label}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </motion.div>
-              ))}
+              </div>
+              <p className="text-ios-text-secondary text-sm mt-6 animate-pulse">抽卡中...</p>
             </motion.div>
           )}
 
+          {/* 揭晓状态 */}
           {drawPhase === 'reveal' && result && (
             <motion.div
               key="reveal"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center w-full max-w-sm"
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center"
             >
-              <motion.p
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-ios-text-secondary text-sm mb-4"
-              >
-                命运选择了
-              </motion.p>
-
+              {/* 品级标题 */}
               <motion.div
-                initial={{ scale: 0.5, opacity: 0, rotateY: 180 }}
-                animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 200,
-                  damping: 20,
-                  delay: 0.1,
-                }}
-                className="overflow-hidden mb-6 mx-auto rounded-[20px]"
-                style={{
-                  background: 'rgba(255, 255, 255, 0.7)',
-                  backdropFilter: 'blur(20px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                  boxShadow: '0 12px 48px rgba(255, 127, 50, 0.15), 0 0 0 1px rgba(232, 223, 213, 0.3)',
-                  border: '1px solid rgba(232, 223, 213, 0.3)',
-                }}
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-center mb-4"
               >
-                <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] m-4">
-                  <img
-                    src={result.image}
-                    alt={result.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="px-5 pb-5">
-                  <h2 className="text-2xl font-bold text-ios-text mb-3">
-                    {result.name}
-                  </h2>
-                  <div className="flex items-center justify-center gap-4 text-sm text-ios-text-secondary mb-4">
-                    <span>¥{result.price}</span>
-                    <span>{result.calories} kcal</span>
-                    <span className={result.temperature === '热' ? 'text-ios-red' : result.temperature === '冰' ? 'text-ios-blue' : 'text-ios-orange'}>
-                      {result.temperature}
-                    </span>
-                  </div>
-                  <div className="flex justify-center gap-2">
-                    <span className={result.temperature === '热' ? 'tag-hot' : result.temperature === '冰' ? 'tag-cold' : 'tag-warm'}>
-                      {result.temperature}
-                    </span>
-                  </div>
-                </div>
-                <div className="px-5 pb-5" style={{
-                  background: 'linear-gradient(180deg, transparent 0%, rgba(255, 127, 50, 0.05) 100%)',
-                }}>
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={handleDraw}
-                      className="ios-button gap-2"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      再抽一次
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saved}
-                      className={`flex items-center gap-2 px-5 py-3 rounded-ios-lg font-medium text-sm transition-all duration-300 ${
-                        saved
-                          ? 'bg-ios-green text-white'
-                          : 'bg-white text-ios-text shadow-ios hover:shadow-ios-hover hover:translate-y-[-1px]'
-                      }`}
-                      style={{
-                        border: '1px solid #E8DFD5',
-                      }}
-                    >
-                      <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
-                      {saved ? '已保存' : '保存结果'}
-                    </button>
-                  </div>
-                </div>
+                <span
+                  className="inline-block px-4 py-1.5 rounded-full text-sm font-bold text-white"
+                  style={{ background: tierConfig?.gradient }}
+                >
+                  {tierConfig?.name} · {tierConfig?.label}
+                </span>
               </motion.div>
 
+              {/* 卡片 */}
+              <GachaCard food={result} showParticles={true} size="large" />
+
+              {/* 操作按钮 */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="flex items-center justify-center gap-3"
+                transition={{ delay: 0.6 }}
+                className="mt-8 flex flex-col items-center gap-4"
               >
-                <button
-                  onClick={handleDraw}
-                  className="ios-button gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  再抽一次
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saved}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-ios-lg font-medium text-sm transition-all duration-300 ${
-                    saved
-                      ? 'bg-ios-green text-white'
-                      : 'bg-white text-ios-text shadow-ios hover:shadow-ios-hover'
-                  }`}
-                >
-                  <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
-                  {saved ? '已保存' : '保存结果'}
-                </button>
-              </motion.div>
+                <div className="flex items-center gap-3">
+                  <button onClick={handleDraw} className="ios-button gap-2">
+                    <RotateCcw className="w-4 h-4" />
+                    再抽一次
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saved}
+                    className={`flex items-center gap-2 px-5 py-3 rounded-ios-lg font-medium text-sm transition-all duration-300 ${
+                      saved
+                        ? 'bg-ios-green text-white'
+                        : 'bg-white text-ios-text shadow-ios hover:shadow-ios-hover hover:translate-y-[-1px]'
+                    }`}
+                    style={{ border: '1px solid #E8DFD5' }}
+                  >
+                    <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
+                    {saved ? '已保存' : '保存结果'}
+                  </button>
+                </div>
 
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.7 }}
-                onClick={() => navigate(`/food/${result.id}`)}
-                className="mt-4 text-warm-orange text-sm hover:underline"
-              >
-                查看详情
-              </motion.button>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => navigate(`/food/${result.id}`)}
+                    className="text-warm-orange text-sm hover:underline"
+                  >
+                    查看详情
+                  </button>
+                  <button
+                    onClick={() => setShowProbPanel(true)}
+                    className="flex items-center gap-1 text-ios-text-secondary text-sm hover:text-warm-orange transition-colors"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    概率公示
+                  </button>
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* 概率公示面板 */}
+      <GachaProbabilityPanel isOpen={showProbPanel} onClose={() => setShowProbPanel(false)} />
     </motion.div>
   )
 }
@@ -319,7 +288,6 @@ function DrawButton({ onClick, disabled }) {
     >
       <Shuffle className="w-8 h-8 text-white" />
       <span className="text-white font-semibold text-lg">抽一张</span>
-      {/* 脉冲光环 */}
       <span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-warm-orange" style={{ animationDuration: '2s' }} />
     </motion.button>
   )

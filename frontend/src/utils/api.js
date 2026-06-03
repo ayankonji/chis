@@ -82,13 +82,58 @@ export async function fetchCategories() {
   return ['全部', ...unique]
 }
 
-// 随机抽取一个美食
-export async function drawRandomFood() {
-  // Supabase 不支持 ORDER BY RANDOM()，所以先获取所有，再随机选一个
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?select=*`, { headers })
-  if (!res.ok) throw new Error('Failed to draw')
+// ============================================
+// 管理员配置 API
+// ============================================
+
+// 获取管理员配置（按用户名查询）
+export async function fetchAdminConfig(username) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/admin_config?username=eq.${encodeURIComponent(username)}&select=*`,
+    { headers }
+  )
+  if (!res.ok) throw new Error('Failed to fetch admin config')
+  return await res.json()
+}
+
+// ============================================
+// 保底计数 API
+// ============================================
+
+// 获取保底计数
+export async function fetchPity(deviceId) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/pity?device_id=eq.${encodeURIComponent(deviceId)}&select=*`,
+    { headers }
+  )
+  if (!res.ok) return null
   const data = await res.json()
-  if (!data || data.length === 0) return null
-  const idx = Math.floor(Math.random() * data.length)
-  return data[idx]
+  return data[0] || null
+}
+
+// 更新保底计数（upsert：存在则更新，不存在则插入）
+export async function updatePity(deviceId, pityData) {
+  const body = {
+    device_id: deviceId,
+    ...pityData,
+    updated_at: new Date().toISOString(),
+  }
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/pity`, {
+    method: 'POST',
+    headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
+    body: JSON.stringify(body)
+  })
+  if (!res.ok) throw new Error('Failed to update pity')
+  const data = await res.json()
+  return data[0] || data
+}
+
+// ============================================
+// 抽卡 API（全量读取 + 概率计算由前端 gacha.js 处理）
+// ============================================
+
+export async function drawGachaFood() {
+  const foods = await fetchFoods()
+  if (!foods || foods.length === 0) return null
+  return foods
 }

@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Flame, Candy, Thermometer, Star } from 'lucide-react'
 import { TIER_CONFIG } from '../utils/gacha'
+import { fetchFoodImage } from '../utils/api'
 import ParticleEffect from './ParticleEffect'
 
 export default function GachaCard({ food, showParticles = true, size = 'normal' }) {
@@ -9,6 +11,15 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
   const tier = food.gacha_tier || 'bronze'
   const config = TIER_CONFIG[tier]
   const isLarge = size === 'large'
+  const [imageUrl, setImageUrl] = useState(food.image || null)
+
+  // 懒加载图片
+  useEffect(() => {
+    if (imageUrl || !food.id) return
+    fetchFoodImage(food.id).then(img => {
+      if (img) setImageUrl(img)
+    })
+  }, [food.id, imageUrl])
 
   const tempConfig = {
     '热': { color: 'bg-brick-red/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
@@ -37,11 +48,15 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
       >
         {/* 图片容器 - 保持圆角 */}
         <div className={`relative ${isLarge ? 'aspect-[3/4]' : 'aspect-[3/3.5]'} overflow-hidden rounded-[20px]`}>
-          <img
-            src={food.image}
-            alt={food.name}
-            className="w-full h-full object-cover transition-transform duration-500 ease-out hover:scale-105"
-          />
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={food.name}
+              className="w-full h-full object-cover transition-transform duration-500 ease-out hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full bg-ios-gray-5 animate-pulse" />
+          )}
 
           {/* 渐变遮罩 */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

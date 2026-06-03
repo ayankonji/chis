@@ -1,10 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Flame, Candy, Thermometer, User } from 'lucide-react'
+import { fetchFoodImage } from '../utils/api'
 
 export default function FoodCard({ food, index = 0, layoutId }) {
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [imageUrl, setImageUrl] = useState(food.image || null)
+  const cardRef = useRef(null)
+
+  // 懒加载图片：列表查询不含 image 字段，卡片进入视口后单独加载
+  useEffect(() => {
+    if (imageUrl || !food.id) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          observer.disconnect()
+          fetchFoodImage(food.id).then(img => {
+            if (img) setImageUrl(img)
+          })
+        }
+      },
+      { rootMargin: '200px' }
+    )
+
+    if (cardRef.current) observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [food.id, imageUrl])
 
   const tempConfig = {
     '热': { color: 'bg-brick-red/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
@@ -33,6 +56,7 @@ export default function FoodCard({ food, index = 0, layoutId }) {
       }}
       layoutId={layoutId}
       className="group card-25d-wrapper"
+      ref={cardRef}
     >
       <Link to={`/food/${food.id}`} className="block tap-highlight-none">
         <div className="card-25d relative rounded-[20px] overflow-hidden">
@@ -41,15 +65,17 @@ export default function FoodCard({ food, index = 0, layoutId }) {
             {!imgLoaded && (
               <div className="absolute inset-0 bg-ios-gray-5 animate-pulse" />
             )}
-            <img
-              src={food.image}
-              alt={food.name}
-              loading="lazy"
-              onLoad={() => setImgLoaded(true)}
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
-                imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
-              } group-hover:scale-110`}
-            />
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt={food.name}
+                loading="lazy"
+                onLoad={() => setImgLoaded(true)}
+                className={`absolute inset-0 w-full h-full object-cover transition-all duration-700 ${
+                  imgLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-105'
+                } group-hover:scale-110`}
+              />
+            )}
 
             {/* 底部毛玻璃渐变遮罩 */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

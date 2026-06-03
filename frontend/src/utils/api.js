@@ -15,9 +15,13 @@ const headers = {
 // 美食 API
 // ============================================
 
+// 列表查询：排除 image 字段（base64 图片~300KB/条，33条≈10MB 导致加载超时）
+// 图片通过 fetchFoodImage(id) 单独按需加载
+const LIST_FIELDS = 'id,name,price,calories,sweetness,spiciness,temperature,category,description,created_at,uploader,gacha_tier,gacha_prob'
+
 export async function fetchFoods(category = '全部', search = '') {
   const params = new URLSearchParams()
-  params.append('select', '*')
+  params.append('select', LIST_FIELDS)
   params.append('order', 'created_at.desc')
   if (category && category !== '全部') {
     params.append('category', `eq.${category}`)
@@ -32,7 +36,7 @@ export async function fetchFoods(category = '全部', search = '') {
 
 // 无条件获取全量食物（用于品级重算和缓存）
 export async function fetchAllFoods() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?select=*&order=created_at.desc`, { headers })
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?select=${LIST_FIELDS}&order=created_at.desc`, { headers })
   if (!res.ok) throw new Error('Failed to fetch all foods')
   return await res.json()
 }
@@ -42,6 +46,18 @@ export async function fetchFood(id) {
   if (!res.ok) throw new Error('Failed to fetch food')
   const data = await res.json()
   return data[0] || null
+}
+
+// 单独获取食物图片（按需懒加载，避免列表查询时下载 10MB base64 数据）
+const imageCache = new Map()
+export async function fetchFoodImage(id) {
+  if (imageCache.has(id)) return imageCache.get(id)
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?id=eq.${id}&select=image`, { headers })
+  if (!res.ok) return null
+  const data = await res.json()
+  const image = data[0]?.image || null
+  if (image) imageCache.set(id, image)
+  return image
 }
 
 export async function createFood(foodData) {

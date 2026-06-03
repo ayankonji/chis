@@ -18,7 +18,9 @@ function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-ios-bg">
+    <div className="min-h-screen" style={{
+      background: 'radial-gradient(ellipse at top, #FFF9F3 0%, #F5EFE6 100%)',
+    }}>
       <Navbar scrolled={scrolled} />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>

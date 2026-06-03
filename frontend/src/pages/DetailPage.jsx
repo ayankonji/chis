@@ -28,7 +28,7 @@ export default function DetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
-        <Loader2 className="w-8 h-8 text-ios-blue animate-spin" />
+        <Loader2 className="w-8 h-8 text-warm-orange animate-spin" />
       </div>
     )
   }
@@ -43,9 +43,9 @@ export default function DetailPage() {
   }
 
   const tempConfig = {
-    '热': { class: 'tag-hot', color: '#FF3B30' },
-    '冰': { class: 'tag-cold', color: '#007AFF' },
-    '常温': { class: 'tag-warm', color: '#FF9500' },
+    '热': { class: 'tag-hot', color: '#D85A38' },
+    '冰': { class: 'tag-cold', color: '#5AC8FA' },
+    '常温': { class: 'tag-warm', color: '#FF7F32' },
   }
   const temp = tempConfig[food.temperature] || tempConfig['常温']
 
@@ -101,7 +101,7 @@ export default function DetailPage() {
           </Link>
           <button
             onClick={handleDelete}
-            className="w-10 h-10 rounded-full glass flex items-center justify-center text-white hover:bg-ios-red/90 transition-all duration-300"
+            className="w-10 h-10 rounded-full glass flex items-center justify-center text-white hover:bg-brick-red/90 transition-all duration-300"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -146,8 +146,8 @@ export default function DetailPage() {
 
           {/* 甜度辣度 */}
           <div className="space-y-4 mb-6">
-            <RatingBar label="甜度" value={food.sweetness} icon={<Candy className="w-4 h-4" />} color="bg-ios-pink" />
-            <RatingBar label="辣度" value={food.spiciness} icon={<Flame className="w-4 h-4" />} color="bg-ios-red" />
+            <RatingBar label="甜度" value={food.sweetness} icon={<Candy className="w-4 h-4" />} color="bg-warm-orange" />
+            <RatingBar label="辣度" value={food.spiciness} icon={<Flame className="w-4 h-4" />} color="bg-brick-red" />
           </div>
 
           {/* 描述 */}
@@ -169,7 +169,7 @@ export default function DetailPage() {
           <Link to="/draw" className="flex-1 ios-button text-center">
             去抽卡
           </Link>
-          <Link to="/" className="flex-1 px-6 py-3 rounded-ios-lg font-medium text-sm bg-white text-ios-text shadow-ios hover:shadow-ios-hover transition-all duration-300 text-center">
+          <Link to="/" className="flex-1 px-6 py-3 rounded-ios-lg font-medium text-sm bg-white text-ios-text shadow-ios hover:shadow-ios-hover transition-all duration-300 text-center" style={{ border: '1px solid #E8DFD5' }}>
             返回美食库
           </Link>
         </motion.div>

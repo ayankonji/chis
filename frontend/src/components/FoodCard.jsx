@@ -7,9 +7,9 @@ export default function FoodCard({ food, index = 0, layoutId }) {
   const [imgLoaded, setImgLoaded] = useState(false)
 
   const tempConfig = {
-    '热': { color: 'bg-ios-red/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
-    '冰': { color: 'bg-ios-blue/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
-    '常温': { color: 'bg-ios-orange/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
+    '热': { color: 'bg-brick-red/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
+    '冰': { color: 'bg-ios-teal/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
+    '常温': { color: 'bg-warm-orange/90 text-white', icon: <Thermometer className="w-3 h-3" /> },
   }
   const temp = tempConfig[food.temperature] || tempConfig['常温']
 
@@ -79,7 +79,7 @@ export default function FoodCard({ food, index = 0, layoutId }) {
                 <span className="text-[10px] text-white/80 w-6 flex-shrink-0">甜度</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <span key={i} className={i <= food.sweetness ? 'text-ios-pink' : 'text-white/25'}>
+                    <span key={i} className={i <= food.sweetness ? 'text-warm-orange' : 'text-white/25'}>
                       <Candy className="w-3 h-3" fill={i <= food.sweetness ? 'currentColor' : 'none'} />
                     </span>
                   ))}
@@ -91,7 +91,7 @@ export default function FoodCard({ food, index = 0, layoutId }) {
                 <span className="text-[10px] text-white/80 w-6 flex-shrink-0">辣度</span>
                 <div className="flex gap-0.5">
                   {[1, 2, 3, 4, 5].map(i => (
-                    <span key={i} className={i <= food.spiciness ? 'text-ios-red' : 'text-white/25'}>
+                    <span key={i} className={i <= food.spiciness ? 'text-brick-red' : 'text-white/25'}>
                       <Flame className="w-3 h-3" fill={i <= food.spiciness ? 'currentColor' : 'none'} />
                     </span>
                   ))}

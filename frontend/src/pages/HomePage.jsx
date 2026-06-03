@@ -64,7 +64,7 @@ export default function HomePage() {
         >
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ios-gray" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-gray" />
               <input
                 type="text"
                 placeholder="搜索美食..."
@@ -85,7 +85,7 @@ export default function HomePage() {
               onClick={() => setShowFilters(!showFilters)}
               className={`p-3 rounded-ios transition-all duration-300 ${
                 showFilters
-                  ? 'bg-ios-blue text-white shadow-ios-button'
+                  ? 'bg-warm-orange text-white shadow-md'
                   : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
               }`}
             >
@@ -108,9 +108,9 @@ export default function HomePage() {
                     <button
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
-                      className={`px-4 py-2 rounded-ios text-sm font-medium transition-all duration-300 ${
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                         activeCategory === cat
-                          ? 'bg-ios-blue text-white shadow-ios-button'
+                          ? 'bg-warm-orange text-white shadow-md'
                           : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
                       }`}
                     >
@@ -126,7 +126,7 @@ export default function HomePage() {
         {/* 美食网格 */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-ios-blue animate-spin" />
+            <Loader2 className="w-8 h-8 text-warm-orange animate-spin" />
           </div>
         ) : foods.length === 0 ? (
           <motion.div

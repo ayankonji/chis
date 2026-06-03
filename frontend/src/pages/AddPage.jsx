@@ -112,7 +112,7 @@ export default function AddPage({ editMode = false }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-20">
-        <Loader2 className="w-8 h-8 text-ios-blue animate-spin" />
+        <Loader2 className="w-8 h-8 text-warm-orange animate-spin" />
       </div>
     )
   }
@@ -248,7 +248,7 @@ export default function AddPage({ editMode = false }) {
                     onClick={() => handleChange('temperature', t)}
                     className={`flex-1 py-3 rounded-ios text-sm font-medium transition-all duration-300 ${
                       form.temperature === t
-                        ? 'bg-ios-blue text-white shadow-ios-button'
+                        ? 'bg-warm-orange text-white shadow-md'
                         : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
                     }`}
                   >
@@ -262,7 +262,7 @@ export default function AddPage({ editMode = false }) {
           {/* 甜度 */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-ios-text mb-2">
-              <Candy className="w-4 h-4 text-ios-pink" />
+              <Candy className="w-4 h-4 text-warm-orange" />
               甜度
             </label>
             <div className="flex gap-2">
@@ -273,7 +273,7 @@ export default function AddPage({ editMode = false }) {
                   onClick={() => handleChange('sweetness', v)}
                   className={`flex-1 py-2.5 rounded-ios text-sm font-medium transition-all duration-300 ${
                     form.sweetness === v
-                      ? 'bg-ios-pink text-white shadow-md'
+                      ? 'bg-warm-orange text-white shadow-md'
                       : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
                   }`}
                 >
@@ -286,7 +286,7 @@ export default function AddPage({ editMode = false }) {
           {/* 辣度 */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-ios-text mb-2">
-              <Flame className="w-4 h-4 text-ios-red" />
+              <Flame className="w-4 h-4 text-brick-red" />
               辣度
             </label>
             <div className="flex gap-2">
@@ -297,7 +297,7 @@ export default function AddPage({ editMode = false }) {
                   onClick={() => handleChange('spiciness', v)}
                   className={`flex-1 py-2.5 rounded-ios text-sm font-medium transition-all duration-300 ${
                     form.spiciness === v
-                      ? 'bg-ios-red text-white shadow-md'
+                      ? 'bg-brick-red text-white shadow-md'
                       : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
                   }`}
                 >

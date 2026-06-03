@@ -66,9 +66,11 @@ export default function DrawPage() {
       className="fixed inset-0 overflow-hidden"
     >
       {/* 背景层 */}
-      <div className="absolute inset-0 bg-ios-bg">
+      <div className="absolute inset-0" style={{
+        background: 'radial-gradient(ellipse at top, #FFF9F3 0%, #F5EFE6 100%)',
+      }}>
         {/* 毛玻璃背景 */}
-        <div className="absolute inset-0 backdrop-blur-xl" style={{ background: 'rgba(245,245,247,0.6)' }} />
+        <div className="absolute inset-0 backdrop-blur-xl" style={{ background: 'rgba(255, 249, 243, 0.6)' }} />
 
         {/* 动态胶卷装饰 */}
         <FilmStrip foods={foods} angle={-15} top="10%" speed={30} blur={2} scale={0.6} opacity={0.15} />
@@ -94,7 +96,7 @@ export default function DrawPage() {
                 transition={{ delay: 0.1 }}
                 className="mb-3"
               >
-                <Sparkles className="w-12 h-12 text-ios-blue mx-auto mb-4" />
+                <Sparkles className="w-12 h-12 text-warm-orange mx-auto mb-4" />
               </motion.div>
               <h1 className="text-3xl sm:text-4xl font-semibold text-ios-text mb-3">
                 今天吃什么？
@@ -107,7 +109,7 @@ export default function DrawPage() {
                 <DrawButton onClick={handleDraw} disabled={foods.length === 0} />
               </div>
 
-              <p className="text-ios-gray text-sm mt-6">
+              <p className="text-warm-gray text-sm mt-6">
                 美食库共 {foods.length} 道美食
               </p>
             </motion.div>
@@ -132,12 +134,16 @@ export default function DrawPage() {
                     x: 0,
                     y: 0,
                     rotate: [0, 360, 720, 1080, 1440].map(r => r + i * 45),
+                    rotateX: [5, -5, 5, -5, 5],
+                    rotateY: [5, -5, 5, -5, 5],
                     scale: [0.8, 1.1, 0.9, 1.05, 0.95],
                     opacity: [0.8, 1, 0.8, 1, 0],
                   } : {
                     x: 0,
                     y: 0,
                     rotate: 0,
+                    rotateX: 5,
+                    rotateY: 5,
                     scale: 0.9,
                     opacity: 1,
                   }}
@@ -150,7 +156,11 @@ export default function DrawPage() {
                     delay: i * 0.03,
                     ease: [0.4, 0, 0.2, 1],
                   }}
-                  className="absolute w-40 sm:w-56 aspect-[3/4] rounded-ios overflow-hidden shadow-ios bg-white"
+                  className="absolute w-40 sm:w-56 aspect-[3/4] rounded-[16px] overflow-hidden bg-white"
+                  style={{
+                    boxShadow: '0 12px 40px rgba(255, 127, 50, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1)',
+                    transform: 'perspective(1000px) rotateX(5deg) rotateY(5deg)',
+                  }}
                 >
                   <img
                     src={card.food.image}
@@ -187,28 +197,65 @@ export default function DrawPage() {
                   damping: 20,
                   delay: 0.1,
                 }}
-                className="ios-card overflow-hidden mb-6 mx-auto"
+                className="overflow-hidden mb-6 mx-auto rounded-[20px]"
                 style={{
-                  boxShadow: '0 8px 48px rgba(0, 122, 255, 0.2), 0 0 0 1px rgba(0, 122, 255, 0.1)',
+                  background: 'rgba(255, 255, 255, 0.7)',
+                  backdropFilter: 'blur(20px) saturate(180%)',
+                  WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                  boxShadow: '0 12px 48px rgba(255, 127, 50, 0.15), 0 0 0 1px rgba(232, 223, 213, 0.3)',
+                  border: '1px solid rgba(232, 223, 213, 0.3)',
                 }}
               >
-                <div className="relative aspect-[4/3] overflow-hidden">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] m-4">
                   <img
                     src={result.image}
                     alt={result.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-5">
-                  <h2 className="text-xl font-semibold text-ios-text mb-2">
+                <div className="px-5 pb-5">
+                  <h2 className="text-2xl font-bold text-ios-text mb-3">
                     {result.name}
                   </h2>
-                  <div className="flex items-center justify-center gap-4 text-sm text-ios-text-secondary">
+                  <div className="flex items-center justify-center gap-4 text-sm text-ios-text-secondary mb-4">
                     <span>¥{result.price}</span>
                     <span>{result.calories} kcal</span>
                     <span className={result.temperature === '热' ? 'text-ios-red' : result.temperature === '冰' ? 'text-ios-blue' : 'text-ios-orange'}>
                       {result.temperature}
                     </span>
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <span className={result.temperature === '热' ? 'tag-hot' : result.temperature === '冰' ? 'tag-cold' : 'tag-warm'}>
+                      {result.temperature}
+                    </span>
+                  </div>
+                </div>
+                <div className="px-5 pb-5" style={{
+                  background: 'linear-gradient(180deg, transparent 0%, rgba(255, 127, 50, 0.05) 100%)',
+                }}>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={handleDraw}
+                      className="ios-button gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      再抽一次
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saved}
+                      className={`flex items-center gap-2 px-5 py-3 rounded-ios-lg font-medium text-sm transition-all duration-300 ${
+                        saved
+                          ? 'bg-ios-green text-white'
+                          : 'bg-white text-ios-text shadow-ios hover:shadow-ios-hover hover:translate-y-[-1px]'
+                      }`}
+                      style={{
+                        border: '1px solid #E8DFD5',
+                      }}
+                    >
+                      <Bookmark className={`w-4 h-4 ${saved ? 'fill-current' : ''}`} />
+                      {saved ? '已保存' : '保存结果'}
+                    </button>
                   </div>
                 </div>
               </motion.div>
@@ -245,7 +292,7 @@ export default function DrawPage() {
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.7 }}
                 onClick={() => navigate(`/food/${result.id}`)}
-                className="mt-4 text-ios-blue text-sm hover:underline"
+                className="mt-4 text-warm-orange text-sm hover:underline"
               >
                 查看详情
               </motion.button>
@@ -266,14 +313,14 @@ function DrawButton({ onClick, disabled }) {
       disabled={disabled}
       className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full flex flex-col items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
       style={{
-        background: 'linear-gradient(180deg, #007AFF 0%, #0066CC 100%)',
-        boxShadow: '0 8px 32px rgba(0, 122, 255, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.25), inset 0 -2px 4px rgba(0, 0, 0, 0.1)',
+        background: 'linear-gradient(135deg, #FF7F32 0%, #FF9A5C 50%, #FFB088 100%)',
+        boxShadow: '0 8px 32px rgba(255, 127, 50, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.25), inset 0 -2px 4px rgba(0, 0, 0, 0.1)',
       }}
     >
       <Shuffle className="w-8 h-8 text-white" />
       <span className="text-white font-semibold text-lg">抽一张</span>
       {/* 脉冲光环 */}
-      <span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-ios-blue" style={{ animationDuration: '2s' }} />
+      <span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-warm-orange" style={{ animationDuration: '2s' }} />
     </motion.button>
   )
 }
@@ -289,7 +336,7 @@ function FilmStrip({ foods, angle, top, speed, blur, scale, opacity, direction =
         left: '-50vw',
         transform: `rotate(${angle}deg) scale(${scale})`,
         filter: `blur(${blur}px)`,
-        opacity,
+        opacity: opacity * 0.5,
       }}
     >
       <motion.div
@@ -305,7 +352,7 @@ function FilmStrip({ foods, angle, top, speed, blur, scale, opacity, direction =
             <img
               src={food.image}
               alt=""
-              className="w-full h-full object-cover opacity-60"
+              className="w-full h-full object-cover opacity-30"
               loading="lazy"
             />
           </div>

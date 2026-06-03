@@ -25,10 +25,10 @@ export const TIER_CONFIG = {
   silver: {
     name: '银卡',
     label: 'SR',
-    borderColor: '#E8E8E8',
-    borderShadow: '0 0 20px rgba(232, 232, 232, 0.5), 0 0 40px rgba(192, 192, 192, 0.2)',
-    gradient: 'linear-gradient(135deg, #E8E8E8, #F5F5F5, #D8D8D8)',
-    particleColors: ['#F5F5F5', '#E8E8E8', '#D8D8D8', '#FFFFFF'],
+    borderColor: '#B8B8B8',
+    borderShadow: '0 0 20px rgba(184, 184, 184, 0.5), 0 0 40px rgba(160, 160, 160, 0.2)',
+    gradient: 'linear-gradient(135deg, #C8C8C8, #E0E0E0, #B0B0B0)',
+    particleColors: ['#E0E0E0', '#C8C8C8', '#B0B0B0', '#F0F0F0'],
     bgClass: 'tier-silver',
     totalProb: 0.30, // 银卡总概率 30%
   },

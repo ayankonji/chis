@@ -310,36 +310,36 @@
     );
   }
 
-  /* 银卡渐变边框（更亮的银色） */
+  /* 银卡渐变边框（更明显的银色） */
   .card-25d-silver {
     border: 2.5px solid transparent;
     background-image:
       linear-gradient(#fff, #fff),
-      linear-gradient(135deg, #E8E8E8 0%, #F5F5F5 30%, #D8D8D8 60%, #E8E8E8 100%);
+      linear-gradient(135deg, #B8B8B8 0%, #D0D0D0 30%, #A0A0A0 60%, #B8B8B8 100%);
     background-origin: border-box;
     background-clip: padding-box, border-box;
     box-shadow:
-      0 8px 25px rgba(232, 232, 232, 0.2),
-      0 2px 8px rgba(0, 0, 0, 0.06),
-      0 0 20px rgba(232, 232, 232, 0.25),
-      0 0 40px rgba(192, 192, 192, 0.1),
-      0 20px 60px -15px rgba(0, 0, 0, 0.08);
+      0 8px 25px rgba(184, 184, 184, 0.25),
+      0 2px 8px rgba(0, 0, 0, 0.08),
+      0 0 20px rgba(184, 184, 184, 0.3),
+      0 0 40px rgba(160, 160, 160, 0.15),
+      0 20px 60px -15px rgba(0, 0, 0, 0.1);
   }
 
   .card-25d-silver:hover {
     box-shadow:
-      0 16px 40px rgba(232, 232, 232, 0.25),
-      0 4px 12px rgba(0, 0, 0, 0.08),
-      0 0 30px rgba(232, 232, 232, 0.4),
-      0 0 50px rgba(192, 192, 192, 0.15),
-      0 30px 80px -20px rgba(0, 0, 0, 0.12);
+      0 16px 40px rgba(184, 184, 184, 0.3),
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 0 30px rgba(184, 184, 184, 0.45),
+      0 0 50px rgba(160, 160, 160, 0.2),
+      0 30px 80px -20px rgba(0, 0, 0, 0.14);
   }
 
   .card-25d-silver::after {
     background: linear-gradient(
       to bottom,
-      rgba(232, 232, 232, 0.2),
-      rgba(192, 192, 192, 0.05)
+      rgba(184, 184, 184, 0.25),
+      rgba(160, 160, 160, 0.08)
     );
   }
 

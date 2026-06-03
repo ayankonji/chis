@@ -414,7 +414,7 @@ export default function DrawPage() {
 
       {/* 奶龙彩蛋 */}
       <AnimatePresence>
-        {showNailongEasterEgg && (
+        {showNailongEasterEgg && result && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -428,9 +428,20 @@ export default function DrawPage() {
               animate={{ scale: 1, rotate: 0 }}
               exit={{ scale: 0, rotate: 180 }}
               transition={{ type: 'spring', damping: 15, stiffness: 200 }}
-              className="relative z-10 text-center"
+              className="relative z-10 text-center max-w-sm mx-4"
               onClick={e => e.stopPropagation()}
             >
+              {/* 奶龙图片 */}
+              <div className="relative mb-6 rounded-3xl overflow-hidden shadow-2xl" style={{ border: '4px solid #FFD700' }}>
+                <img
+                  src={result.image}
+                  alt="奶龙"
+                  className="w-full h-auto object-cover"
+                  style={{ maxHeight: '300px' }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+              </div>
+              
               <div className="text-8xl mb-4 animate-bounce">🎉</div>
               <h2 className="text-4xl font-bold text-white mb-2" style={{ textShadow: '0 0 20px rgba(255,215,0,0.8)' }}>
                 恭喜！抽到了奶龙！

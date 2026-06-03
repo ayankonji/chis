@@ -36,14 +36,11 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
         className={`card-25d card-25d-${tier} relative rounded-[20px] overflow-hidden`}
       >
         {/* 图片容器 - 保持圆角 */}
-        <div className={`relative ${isLarge ? 'aspect-[3/4]' : 'aspect-[3/3.5]'} overflow-hidden rounded-[18px]`}>
+        <div className={`relative ${isLarge ? 'aspect-[3/4]' : 'aspect-[3/3.5]'} overflow-hidden rounded-[20px]`}>
           <img
             src={food.image}
             alt={food.name}
-            className="w-full h-full object-cover transition-transform duration-500 ease-out"
-            style={{ transform: 'scale(1)' }}
-            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            className="w-full h-full object-cover transition-transform duration-500 ease-out hover:scale-105"
           />
 
           {/* 渐变遮罩 */}

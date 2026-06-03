@@ -22,7 +22,7 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
       initial={{ rotateY: 180, scale: 0.8 }}
       animate={{ rotateY: 0, scale: 1 }}
       transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-      className={`relative ${isLarge ? 'w-72 sm:w-80' : 'w-56'} mx-auto`}
+      className={`relative ${isLarge ? 'w-72 sm:w-80' : 'w-56'} mx-auto card-25d-wrapper`}
     >
       {/* 品级光环 */}
       {tier === 'gold' && (
@@ -31,13 +31,9 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
         />
       )}
 
-      {/* 卡片主体 */}
+      {/* 卡片主体 - 2.5D 品级渐变边框 */}
       <div
-        className={`relative rounded-[20px] overflow-hidden ${isLarge ? 'shadow-2xl' : 'shadow-xl'}`}
-        style={{
-          border: `3px solid ${config.borderColor}`,
-          boxShadow: config.borderShadow,
-        }}
+        className={`card-25d card-25d-${tier} relative rounded-[20px] overflow-hidden`}
       >
         {/* 图片 */}
         <div className={`relative ${isLarge ? 'aspect-[3/4]' : 'aspect-[3/3.5]'} overflow-hidden`}>

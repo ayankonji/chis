@@ -219,6 +219,170 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  /* ============================================
+     2.5D 悬浮卡片效果
+     ============================================ */
+
+  /* 透视容器 - 外层包裹，营造景深 */
+  .card-25d-wrapper {
+    perspective: 800px;
+    perspective-origin: center center;
+  }
+
+  /* 2.5D 卡片主体 - 浮空 + 厚度 + 分层阴影 */
+  .card-25d {
+    position: relative;
+    transform: translateZ(0);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 双阴影：底层扩散阴影模拟浮空，上层阴影模拟光照 */
+    box-shadow:
+      0 8px 25px rgba(0, 0, 0, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 20px 60px -15px rgba(0, 0, 0, 0.08);
+  }
+
+  /* 伪元素：卡片底层厚度（3D 侧面） */
+  .card-25d::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    bottom: -6px;
+    height: 12px;
+    border-radius: 0 0 20px 20px;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.08),
+      rgba(0, 0, 0, 0.02)
+    );
+    z-index: -1;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: blur(2px);
+  }
+
+  /* 悬停时增强浮空效果 */
+  .card-25d:hover {
+    transform: translateY(-8px) translateZ(20px);
+    box-shadow:
+      0 16px 40px rgba(0, 0, 0, 0.15),
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 30px 80px -20px rgba(0, 0, 0, 0.12);
+  }
+
+  .card-25d:hover::after {
+    bottom: -10px;
+    height: 16px;
+    opacity: 0.8;
+  }
+
+  /* ---- 品级渐变边框 ---- */
+
+  /* 金卡渐变边框 */
+  .card-25d-gold {
+    border: 2.5px solid transparent;
+    background-image:
+      linear-gradient(#fff, #fff),
+      linear-gradient(135deg, #FFD700 0%, #FFA500 40%, #FFEC8B 70%, #FFD700 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+      0 8px 25px rgba(255, 215, 0, 0.15),
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 0 20px rgba(255, 215, 0, 0.2),
+      0 20px 60px -15px rgba(255, 165, 0, 0.1);
+  }
+
+  .card-25d-gold:hover {
+    box-shadow:
+      0 16px 40px rgba(255, 215, 0, 0.2),
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 0 30px rgba(255, 215, 0, 0.35),
+      0 30px 80px -20px rgba(255, 165, 0, 0.15);
+  }
+
+  .card-25d-gold::after {
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 215, 0, 0.2),
+      rgba(255, 165, 0, 0.05)
+    );
+  }
+
+  /* 银卡渐变边框 */
+  .card-25d-silver {
+    border: 2.5px solid transparent;
+    background-image:
+      linear-gradient(#fff, #fff),
+      linear-gradient(135deg, #C0C0C0 0%, #E8E8E8 40%, #A8A8A8 70%, #C0C0C0 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+      0 8px 25px rgba(192, 192, 192, 0.12),
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 0 15px rgba(192, 192, 192, 0.18),
+      0 20px 60px -15px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-25d-silver:hover {
+    box-shadow:
+      0 16px 40px rgba(192, 192, 192, 0.18),
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 0 25px rgba(192, 192, 192, 0.3),
+      0 30px 80px -20px rgba(0, 0, 0, 0.12);
+  }
+
+  .card-25d-silver::after {
+    background: linear-gradient(
+      to bottom,
+      rgba(192, 192, 192, 0.15),
+      rgba(168, 168, 168, 0.04)
+    );
+  }
+
+  /* 铜卡渐变边框 */
+  .card-25d-bronze {
+    border: 2px solid transparent;
+    background-image:
+      linear-gradient(#fff, #fff),
+      linear-gradient(135deg, #CD7F32 0%, #E8A862 40%, #8B5A2B 70%, #CD7F32 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+      0 8px 25px rgba(205, 127, 50, 0.1),
+      0 2px 8px rgba(0, 0, 0, 0.06),
+      0 0 12px rgba(205, 127, 50, 0.15),
+      0 20px 60px -15px rgba(0, 0, 0, 0.08);
+  }
+
+  .card-25d-bronze:hover {
+    box-shadow:
+      0 16px 40px rgba(205, 127, 50, 0.15),
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 0 20px rgba(205, 127, 50, 0.25),
+      0 30px 80px -20px rgba(0, 0, 0, 0.1);
+  }
+
+  .card-25d-bronze::after {
+    background: linear-gradient(
+      to bottom,
+      rgba(205, 127, 50, 0.12),
+      rgba(139, 90, 43, 0.03)
+    );
+  }
+
+  /* ============================================
+     角落美食暗纹装饰
+     ============================================ */
+  .corner-decor {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    pointer-events: none;
+    opacity: 0.04;
+    z-index: 1;
+  }
 }
 
 @layer utilities {

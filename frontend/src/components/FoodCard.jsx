@@ -24,10 +24,10 @@ export default function FoodCard({ food, index = 0, layoutId }) {
         ease: [0.4, 0, 0.2, 1]
       }}
       layoutId={layoutId}
-      className="group"
+      className="group card-25d-wrapper"
     >
       <Link to={`/food/${food.id}`} className="block tap-highlight-none">
-        <div className="relative rounded-[20px] overflow-hidden shadow-ios hover:shadow-ios-hover transition-all duration-500 group-hover:-translate-y-3">
+        <div className="card-25d relative rounded-[20px] overflow-hidden">
           {/* 全图背景 */}
           <div className="relative w-full aspect-[3/4] overflow-hidden">
             {!imgLoaded && (

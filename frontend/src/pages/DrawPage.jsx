@@ -105,10 +105,19 @@ export default function DrawPage() {
       <div className="absolute inset-0" style={{
         background: 'radial-gradient(ellipse at top, #FFF9F3 0%, #F5EFE6 100%)',
       }}>
-        <div className="absolute inset-0 backdrop-blur-xl" style={{ background: 'rgba(255, 249, 243, 0.6)' }} />
-        <FilmStrip foods={foods} angle={-15} top="10%" speed={30} blur={2} scale={0.6} opacity={0.15} />
-        <FilmStrip foods={foods} angle={10} top="60%" speed={40} blur={4} scale={0.4} opacity={0.1} direction="right" />
-        <FilmStrip foods={foods} angle={-5} top="85%" speed={25} blur={1} scale={0.8} opacity={0.12} />
+        {/* 毛玻璃层 - 高透明度，胶卷带若隐若现 */}
+        <div className="absolute inset-0 backdrop-blur-md" style={{ background: 'rgba(255, 249, 243, 0.45)' }} />
+
+        {/* 胶卷带 - 放大尺寸，更近距离 */}
+        <FilmStrip foods={foods} angle={-15} top="5%" speed={30} blur={1} scale={0.85} opacity={0.22} />
+        <FilmStrip foods={foods} angle={10} top="52%" speed={40} blur={2} scale={0.65} opacity={0.16} direction="right" />
+        <FilmStrip foods={foods} angle={-5} top="82%" speed={25} blur={1} scale={0.95} opacity={0.2} />
+
+        {/* 四角美食简笔画暗纹 */}
+        <CornerDecor position="top-left" />
+        <CornerDecor position="top-right" />
+        <CornerDecor position="bottom-left" />
+        <CornerDecor position="bottom-right" />
       </div>
 
       {/* 内容层 */}
@@ -127,25 +136,25 @@ export default function DrawPage() {
               <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="mb-3">
                 <Sparkles className="w-12 h-12 text-warm-orange mx-auto mb-4" />
               </motion.div>
-              <h1 className="text-3xl sm:text-4xl font-semibold text-ios-text mb-3">今天吃什么？</h1>
-              <p className="text-ios-text-secondary text-base sm:text-lg mb-6 max-w-md mx-auto">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-ios-text mb-4 tracking-tight">今天吃什么？</h1>
+              <p className="text-warm-gray-light text-base sm:text-lg mb-10 max-w-md mx-auto leading-relaxed">
                 不知道吃什么？点击按钮，让命运决定你的下一餐
               </p>
-
-              {/* 概率公示按钮 - 在抽卡按钮上方，独立区域 */}
-              <button
-                onClick={() => setShowProbPanel(true)}
-                className="mb-6 flex items-center gap-1.5 mx-auto text-sm text-ios-text-secondary hover:text-warm-orange transition-colors"
-              >
-                <BarChart3 className="w-4 h-4" />
-                查看概率公示
-              </button>
 
               <div className="flex justify-center">
                 <DrawButton onClick={handleDraw} disabled={foods.length === 0} />
               </div>
 
-              <p className="text-warm-gray text-sm mt-8">美食库共 {foods.length} 道菜</p>
+              {/* 概率公示按钮 - 浅灰文字，远离抽卡按钮防误触 */}
+              <button
+                onClick={() => setShowProbPanel(true)}
+                className="mt-12 flex items-center gap-1.5 mx-auto text-sm text-ios-gray-3 hover:text-ios-text-secondary transition-colors duration-300"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                查看概率公示
+              </button>
+
+              <p className="text-ios-gray-3 text-sm mt-6">美食库共 {foods.length} 道菜</p>
             </motion.div>
           )}
 
@@ -232,21 +241,41 @@ export default function DrawPage() {
 // ============================================
 function DrawButton({ onClick, disabled }) {
   return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.92 }}
-      onClick={onClick}
-      disabled={disabled}
-      className="relative w-36 h-36 sm:w-44 sm:h-44 rounded-full flex flex-col items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-      style={{
-        background: 'linear-gradient(135deg, #FF7F32 0%, #FF9A5C 50%, #FFB088 100%)',
-        boxShadow: '0 8px 32px rgba(255, 127, 50, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.25), inset 0 -2px 4px rgba(0, 0, 0, 0.1)',
-      }}
-    >
-      <Shuffle className="w-8 h-8 text-white" />
-      <span className="text-white font-semibold text-lg">抽一张</span>
-      <span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-warm-orange" style={{ animationDuration: '2s' }} />
-    </motion.button>
+    <div className="relative animate-float">
+      {/* 外发光光晕 */}
+      <div
+        className="absolute inset-0 rounded-full animate-pulse"
+        style={{
+          background: 'radial-gradient(circle, rgba(255, 127, 50, 0.3) 0%, rgba(255, 154, 92, 0.15) 50%, transparent 70%)',
+          transform: 'scale(1.4)',
+          filter: 'blur(8px)',
+          pointerEvents: 'none',
+        }}
+      />
+      <motion.button
+        whileHover={{ scale: 1.06 }}
+        whileTap={{ scale: 0.92 }}
+        onClick={onClick}
+        disabled={disabled}
+        className="relative z-10 w-36 h-36 sm:w-44 sm:h-44 rounded-full flex flex-col items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{
+          background: 'linear-gradient(135deg, #FF7F32 0%, #FF9A5C 40%, #FFB088 70%, #FFCEB0 100%)',
+          boxShadow: '0 8px 32px rgba(255, 127, 50, 0.4), 0 0 60px rgba(255, 127, 50, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.1)',
+        }}
+      >
+        <Shuffle className="w-8 h-8 text-white drop-shadow-md" />
+        <span className="text-white font-semibold text-lg drop-shadow-md">抽一张</span>
+        {/* 脉冲光环 - pointer-events:none 确保不拦截点击 */}
+        <span
+          className="absolute inset-0 rounded-full animate-ping opacity-20"
+          style={{
+            backgroundColor: '#FF7F32',
+            animationDuration: '2s',
+            pointerEvents: 'none',
+          }}
+        />
+      </motion.button>
+    </div>
   )
 }
 
@@ -388,6 +417,36 @@ function MobileSpinStrip({ items }) {
 }
 
 // ============================================
+// 四角美食简笔画暗纹
+// ============================================
+function CornerDecor({ position }) {
+  const posClass = {
+    'top-left': 'top-4 left-4',
+    'top-right': 'top-4 right-4 -scale-x-100',
+    'bottom-left': 'bottom-4 left-4 -scale-y-100',
+    'bottom-right': 'bottom-4 right-4 -scale-x-100 -scale-y-100',
+  }[position]
+
+  return (
+    <div className={`absolute ${posClass} pointer-events-none`} style={{ opacity: 0.04 }}>
+      <svg width="180" height="180" viewBox="0 0 180 180" fill="none">
+        {/* 碗 + 筷子 */}
+        <ellipse cx="60" cy="120" rx="45" ry="18" stroke="#8B7E74" strokeWidth="2.5" />
+        <path d="M15 120 Q60 60 105 120" stroke="#8B7E74" strokeWidth="2.5" fill="none" />
+        <line x1="75" y1="50" x2="95" y2="115" stroke="#8B7E74" strokeWidth="2" strokeLinecap="round" />
+        <line x1="85" y1="48" x2="100" y2="112" stroke="#8B7E74" strokeWidth="2" strokeLinecap="round" />
+        {/* 杯子 */}
+        <rect x="120" y="55" width="35" height="50" rx="4" stroke="#8B7E74" strokeWidth="2" />
+        <path d="M155 65 Q175 65 175 82 Q175 100 155 100" stroke="#8B7E74" strokeWidth="2" fill="none" />
+        {/* 蒸汽 */}
+        <path d="M130 50 Q133 40 137 50" stroke="#8B7E74" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <path d="M140 48 Q143 36 147 48" stroke="#8B7E74" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      </svg>
+    </div>
+  )
+}
+
+// ============================================
 // 背景装饰胶片条
 // ============================================
 function FilmStrip({ foods, angle, top, speed, blur, scale, opacity, direction = 'left' }) {
@@ -404,7 +463,7 @@ function FilmStrip({ foods, angle, top, speed, blur, scale, opacity, direction =
         className="flex gap-3"
       >
         {repeated.map((food, i) => (
-          <div key={i} className="flex-shrink-0 w-32 h-44 rounded-ios overflow-hidden bg-ios-gray-5">
+          <div key={i} className="flex-shrink-0 w-44 h-60 rounded-ios overflow-hidden bg-ios-gray-5">
             <img src={food.image} alt="" className="w-full h-full object-cover opacity-30" loading="lazy" />
           </div>
         ))}

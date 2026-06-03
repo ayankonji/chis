@@ -31,3 +31,9 @@ Thumbs.db
 npm-debug.log*
 
 .vercel
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  

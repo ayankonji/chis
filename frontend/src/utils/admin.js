@@ -1,23 +1,13 @@
 // ============================================
-// 管理员鉴权工具
-// SHA-256 哈希 + sessionStorage 会话管理
+// 管理员鉴权工具（明文密码比对）
 // ============================================
 
 import { fetchAdminConfig } from './api'
 
 const ADMIN_AUTH_KEY = 'chis_admin_auth'
 
-// SHA-256 哈希
-async function sha256(message) {
-  const msgBuffer = new TextEncoder().encode(message)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// 管理员登录验证
+// 管理员登录验证（明文比对，不加密）
 export async function adminLogin(username, password) {
-  const passwordHash = await sha256(password)
   const configs = await fetchAdminConfig(username)
 
   if (!configs || configs.length === 0) {
@@ -25,7 +15,7 @@ export async function adminLogin(username, password) {
   }
 
   const config = configs[0]
-  if (config.password_hash === passwordHash) {
+  if (config.password === password) {
     sessionStorage.setItem(ADMIN_AUTH_KEY, 'true')
     return { success: true }
   }

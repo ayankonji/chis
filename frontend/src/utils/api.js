@@ -12,10 +12,9 @@ const headers = {
 }
 
 // ============================================
-// API 函数 - 使用 Supabase REST API (PostgREST)
+// 美食 API
 // ============================================
 
-// 获取所有美食（支持分类筛选和搜索）
 export async function fetchFoods(category = '全部', search = '') {
   const params = new URLSearchParams()
   params.append('select', '*')
@@ -31,7 +30,6 @@ export async function fetchFoods(category = '全部', search = '') {
   return await res.json()
 }
 
-// 获取单个美食
 export async function fetchFood(id) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?id=eq.${id}&select=*`, { headers })
   if (!res.ok) throw new Error('Failed to fetch food')
@@ -39,7 +37,6 @@ export async function fetchFood(id) {
   return data[0] || null
 }
 
-// 创建美食
 export async function createFood(foodData) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods`, {
     method: 'POST',
@@ -51,7 +48,6 @@ export async function createFood(foodData) {
   return data[0] || data
 }
 
-// 编辑美食
 export async function editFood(id, foodData) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?id=eq.${id}`, {
     method: 'PATCH',
@@ -63,7 +59,6 @@ export async function editFood(id, foodData) {
   return data[0] || data
 }
 
-// 删除美食
 export async function removeFood(id) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?id=eq.${id}`, {
     method: 'DELETE',
@@ -73,7 +68,6 @@ export async function removeFood(id) {
   return true
 }
 
-// 获取分类列表（从数据中提取去重的分类）
 export async function fetchCategories() {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/foods?select=category&order=category`, { headers })
   if (!res.ok) throw new Error('Failed to fetch categories')
@@ -83,10 +77,9 @@ export async function fetchCategories() {
 }
 
 // ============================================
-// 管理员配置 API
+// 管理员配置 API（明文密码）
 // ============================================
 
-// 获取管理员配置（按用户名查询）
 export async function fetchAdminConfig(username) {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/admin_config?username=eq.${encodeURIComponent(username)}&select=*`,
@@ -100,7 +93,6 @@ export async function fetchAdminConfig(username) {
 // 保底计数 API
 // ============================================
 
-// 获取保底计数
 export async function fetchPity(deviceId) {
   const res = await fetch(
     `${SUPABASE_URL}/rest/v1/pity?device_id=eq.${encodeURIComponent(deviceId)}&select=*`,
@@ -111,7 +103,6 @@ export async function fetchPity(deviceId) {
   return data[0] || null
 }
 
-// 更新保底计数（upsert：存在则更新，不存在则插入）
 export async function updatePity(deviceId, pityData) {
   const body = {
     device_id: deviceId,
@@ -129,11 +120,27 @@ export async function updatePity(deviceId, pityData) {
 }
 
 // ============================================
-// 抽卡 API（全量读取 + 概率计算由前端 gacha.js 处理）
+// 抽卡记录 API
 // ============================================
 
-export async function drawGachaFood() {
-  const foods = await fetchFoods()
-  if (!foods || foods.length === 0) return null
-  return foods
+export async function createDrawLog(logData) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/draw_log`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(logData)
+  })
+  if (!res.ok) throw new Error('Failed to create draw log')
+  const data = await res.json()
+  return data[0] || data
+}
+
+export async function fetchDrawLogs(deviceId, limit = 20) {
+  const params = new URLSearchParams()
+  params.append('select', '*')
+  params.append('device_id', `eq.${deviceId}`)
+  params.append('order', 'drawn_at.desc')
+  params.append('limit', String(limit))
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/draw_log?${params}`, { headers })
+  if (!res.ok) return []
+  return await res.json()
 }

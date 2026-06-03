@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Upload, Loader2, Flame, Candy, Thermometer, AlertCircle } from 'lucide-react'
 import { createFood, fetchFood, editFood } from '../utils/api'
-import { calculateGachaDistribution } from '../utils/gacha'
+import { isAdminLoggedIn } from '../utils/admin'
+import AdminLoginModal from '../components/AdminLoginModal'
 
 const CATEGORIES = ['中餐', '西餐', '日料', '韩料', '泰料', '甜点', '饮品', '轻食', '快餐', '其他']
 const TEMPERATURES = ['热', '冷', '常温']
@@ -18,6 +19,8 @@ export default function AddPage({ editMode = false }) {
   const [saving, setSaving] = useState(false)
   const [previewUrl, setPreviewUrl] = useState('')
   const [errors, setErrors] = useState({})
+  const [showAdminModal, setShowAdminModal] = useState(false)
+  const [authorized, setAuthorized] = useState(false)
   const [form, setForm] = useState({
     name: '',
     price: '',
@@ -29,6 +32,15 @@ export default function AddPage({ editMode = false }) {
     description: '',
     image: '',
   })
+
+  // 检查管理员权限
+  useEffect(() => {
+    if (isAdminLoggedIn()) {
+      setAuthorized(true)
+    } else {
+      setShowAdminModal(true)
+    }
+  }, [])
 
   useEffect(() => {
     if (editMode && id) {
@@ -55,7 +67,6 @@ export default function AddPage({ editMode = false }) {
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
-    // 清除该字段的错误
     if (errors[field]) {
       setErrors(prev => { const next = { ...prev }; delete next[field]; return next })
     }
@@ -74,14 +85,12 @@ export default function AddPage({ editMode = false }) {
     const file = e.target.files[0]
     if (!file) return
 
-    // 格式校验
     if (!ALLOWED_TYPES.includes(file.type)) {
       setErrors(prev => ({ ...prev, image: '仅支持 JPG 和 PNG 格式的图片' }))
       e.target.value = ''
       return
     }
 
-    // 大小校验
     if (file.size > MAX_FILE_SIZE) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
       setErrors(prev => ({ ...prev, image: `图片大小 ${sizeMB}MB 超过限制，最大允许 15MB` }))
@@ -89,7 +98,6 @@ export default function AddPage({ editMode = false }) {
       return
     }
 
-    // 清除错误
     if (errors.image) {
       setErrors(prev => { const next = { ...prev }; delete next.image; return next })
     }
@@ -103,13 +111,9 @@ export default function AddPage({ editMode = false }) {
     }
   }
 
-  // 表单校验
   const validate = () => {
     const newErrors = {}
-
-    if (!form.name.trim()) {
-      newErrors.name = '请输入美食名称'
-    }
+    if (!form.name.trim()) newErrors.name = '请输入美食名称'
 
     const price = Number(form.price)
     if (!form.price && form.price !== 0) {
@@ -132,7 +136,6 @@ export default function AddPage({ editMode = false }) {
     if (!validate()) return
 
     setSaving(true)
-
     const data = {
       name: form.name.trim(),
       price: Number(form.price) || 0,
@@ -152,6 +155,26 @@ export default function AddPage({ editMode = false }) {
     }
     setSaving(false)
     navigate('/')
+  }
+
+  // 未授权：显示登录弹窗 + 占位页面
+  if (!authorized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20">
+        <div className="text-center">
+          <p className="text-ios-text-secondary text-lg mb-2">
+            {editMode ? '编辑美食需要管理员权限' : '添加美食需要管理员权限'}
+          </p>
+          <p className="text-ios-text-secondary text-sm mb-4">请先登录管理员账号</p>
+          <button onClick={() => navigate(-1)} className="ios-button">返回</button>
+        </div>
+        <AdminLoginModal
+          isOpen={showAdminModal}
+          onClose={() => { setShowAdminModal(false); navigate(-1) }}
+          onSuccess={() => { setAuthorized(true); setShowAdminModal(false) }}
+        />
+      </div>
+    )
   }
 
   if (loading) {
@@ -202,17 +225,10 @@ export default function AddPage({ editMode = false }) {
             <div className="relative">
               {previewUrl ? (
                 <div className="relative rounded-ios overflow-hidden">
-                  <img
-                    src={previewUrl}
-                    alt="预览"
-                    className="w-full h-48 object-cover"
-                  />
+                  <img src={previewUrl} alt="预览" className="w-full h-48 object-cover" />
                   <button
                     type="button"
-                    onClick={() => {
-                      setPreviewUrl('')
-                      setForm(prev => ({ ...prev, image: '' }))
-                    }}
+                    onClick={() => { setPreviewUrl(''); setForm(prev => ({ ...prev, image: '' })) }}
                     className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-black/50 text-white text-xs backdrop-blur-md"
                   >
                     更换
@@ -223,23 +239,8 @@ export default function AddPage({ editMode = false }) {
                   <Upload className="w-8 h-8 text-ios-text-secondary mb-2" />
                   <span className="text-sm text-ios-text-secondary">点击上传图片</span>
                   <span className="text-xs text-ios-text-secondary mt-1">支持 JPG / PNG，最大 15MB</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
+                  <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handleImageChange} />
                 </label>
-              )}
-              {/* 已有图片时的文件选择 */}
-              {previewUrl && (
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  className="hidden"
-                  id="image-replace"
-                  onChange={handleImageChange}
-                />
               )}
             </div>
             {errors.image && (
@@ -253,57 +254,21 @@ export default function AddPage({ editMode = false }) {
           {/* 名称 */}
           <div>
             <label className="block text-sm font-medium text-ios-text mb-2">美食名称</label>
-            <input
-              type="text"
-              placeholder="红烧肉"
-              value={form.name}
-              onChange={e => handleChange('name', e.target.value)}
-              className={`ios-input ${errors.name ? 'border-ios-red' : ''}`}
-            />
-            {errors.name && (
-              <p className="flex items-center gap-1 mt-1.5 text-sm text-ios-red">
-                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                {errors.name}
-              </p>
-            )}
+            <input type="text" placeholder="红烧肉" value={form.name} onChange={e => handleChange('name', e.target.value)} className={`ios-input ${errors.name ? 'border-ios-red' : ''}`} />
+            {errors.name && <p className="flex items-center gap-1 mt-1.5 text-sm text-ios-red"><AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />{errors.name}</p>}
           </div>
 
           {/* 价格和卡路里 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-ios-text mb-2">售价 (¥)</label>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="38"
-                value={form.price}
-                onChange={e => handleChange('price', e.target.value)}
-                className={`ios-input ${errors.price ? 'border-ios-red' : ''}`}
-              />
-              {errors.price && (
-                <p className="flex items-center gap-1 mt-1.5 text-xs text-ios-red">
-                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                  {errors.price}
-                </p>
-              )}
+              <input type="number" min="0.01" step="0.01" placeholder="38" value={form.price} onChange={e => handleChange('price', e.target.value)} className={`ios-input ${errors.price ? 'border-ios-red' : ''}`} />
+              {errors.price && <p className="flex items-center gap-1 mt-1.5 text-xs text-ios-red"><AlertCircle className="w-3 h-3 flex-shrink-0" />{errors.price}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-ios-text mb-2">热量 (kcal)</label>
-              <input
-                type="number"
-                min="0"
-                placeholder="520"
-                value={form.calories}
-                onChange={e => handleChange('calories', e.target.value)}
-                className={`ios-input ${errors.calories ? 'border-ios-red' : ''}`}
-              />
-              {errors.calories && (
-                <p className="flex items-center gap-1 mt-1.5 text-xs text-ios-red">
-                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                  {errors.calories}
-                </p>
-              )}
+              <input type="number" min="0" placeholder="520" value={form.calories} onChange={e => handleChange('calories', e.target.value)} className={`ios-input ${errors.calories ? 'border-ios-red' : ''}`} />
+              {errors.calories && <p className="flex items-center gap-1 mt-1.5 text-xs text-ios-red"><AlertCircle className="w-3 h-3 flex-shrink-0" />{errors.calories}</p>}
             </div>
           </div>
 
@@ -311,11 +276,7 @@ export default function AddPage({ editMode = false }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-ios-text mb-2">分类</label>
-              <select
-                value={form.category}
-                onChange={e => handleChange('category', e.target.value)}
-                className="ios-input appearance-none"
-              >
+              <select value={form.category} onChange={e => handleChange('category', e.target.value)} className="ios-input appearance-none">
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -323,18 +284,9 @@ export default function AddPage({ editMode = false }) {
               <label className="block text-sm font-medium text-ios-text mb-2">温度</label>
               <div className="flex gap-2">
                 {TEMPERATURES.map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => handleChange('temperature', t)}
-                    className={`flex-1 py-3 rounded-ios text-sm font-medium transition-all duration-300 ${
-                      form.temperature === t
-                        ? 'bg-warm-orange text-white shadow-md'
-                        : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
-                    }`}
-                  >
-                    {t}
-                  </button>
+                  <button key={t} type="button" onClick={() => handleChange('temperature', t)}
+                    className={`flex-1 py-3 rounded-ios text-sm font-medium transition-all duration-300 ${form.temperature === t ? 'bg-warm-orange text-white shadow-md' : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'}`}
+                  >{t}</button>
                 ))}
               </div>
             </div>
@@ -343,23 +295,13 @@ export default function AddPage({ editMode = false }) {
           {/* 甜度 */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-ios-text mb-2">
-              <Candy className="w-4 h-4 text-warm-orange" />
-              甜度
+              <Candy className="w-4 h-4 text-warm-orange" />甜度
             </label>
             <div className="flex gap-2">
               {[0, 1, 2, 3, 4, 5].map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => handleChange('sweetness', v)}
-                  className={`flex-1 py-2.5 rounded-ios text-sm font-medium transition-all duration-300 ${
-                    form.sweetness === v
-                      ? 'bg-warm-orange text-white shadow-md'
-                      : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
-                  }`}
-                >
-                  {v}
-                </button>
+                <button key={v} type="button" onClick={() => handleChange('sweetness', v)}
+                  className={`flex-1 py-2.5 rounded-ios text-sm font-medium transition-all duration-300 ${form.sweetness === v ? 'bg-warm-orange text-white shadow-md' : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'}`}
+                >{v}</button>
               ))}
             </div>
           </div>
@@ -367,23 +309,13 @@ export default function AddPage({ editMode = false }) {
           {/* 辣度 */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-ios-text mb-2">
-              <Flame className="w-4 h-4 text-brick-red" />
-              辣度
+              <Flame className="w-4 h-4 text-brick-red" />辣度
             </label>
             <div className="flex gap-2">
               {[0, 1, 2, 3, 4, 5].map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => handleChange('spiciness', v)}
-                  className={`flex-1 py-2.5 rounded-ios text-sm font-medium transition-all duration-300 ${
-                    form.spiciness === v
-                      ? 'bg-brick-red text-white shadow-md'
-                      : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'
-                  }`}
-                >
-                  {v}
-                </button>
+                <button key={v} type="button" onClick={() => handleChange('spiciness', v)}
+                  className={`flex-1 py-2.5 rounded-ios text-sm font-medium transition-all duration-300 ${form.spiciness === v ? 'bg-brick-red text-white shadow-md' : 'bg-white text-ios-text-secondary shadow-ios hover:text-ios-text'}`}
+                >{v}</button>
               ))}
             </div>
           </div>
@@ -391,30 +323,12 @@ export default function AddPage({ editMode = false }) {
           {/* 描述 */}
           <div>
             <label className="block text-sm font-medium text-ios-text mb-2">简介</label>
-            <textarea
-              rows={3}
-              placeholder="简单描述一下这道美食.."
-              value={form.description}
-              onChange={e => handleChange('description', e.target.value)}
-              className="ios-input resize-none"
-            />
+            <textarea rows={3} placeholder="简单描述一下这道美食.." value={form.description} onChange={e => handleChange('description', e.target.value)} className="ios-input resize-none" />
           </div>
 
           {/* 提交按钮 */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            type="submit"
-            disabled={saving}
-            className="w-full ios-button py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Upload className="w-5 h-5 mr-2" />
-                {editMode ? '保存修改' : '添加美食'}
-              </>
-            )}
+          <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={saving} className="w-full ios-button py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Upload className="w-5 h-5 mr-2" />{editMode ? '保存修改' : '添加美食'}</>}
           </motion.button>
         </motion.form>
       </div>

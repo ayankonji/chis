@@ -38,6 +38,7 @@ export default function DrawPage() {
   const [showNailongEasterEgg, setShowNailongEasterEgg] = useState(false)
   const openAudioRef = useRef(null)      // 开箱音效
   const scrollAudioRef = useRef(null)    // 滚动条带音效
+  const awardAudioRef = useRef(null)     // 抽到美食时的音效
   const nailongAudioRef = useRef(null)   // 奶龙音效
 
   useEffect(() => {
@@ -65,6 +66,14 @@ export default function DrawPage() {
     if (scrollAudioRef.current) {
       scrollAudioRef.current.pause()
       scrollAudioRef.current.currentTime = 0
+    }
+  }, [])
+
+  // 播放抽到美食时的音效
+  const playAwardSound = useCallback(() => {
+    if (awardAudioRef.current) {
+      awardAudioRef.current.currentTime = 0
+      awardAudioRef.current.play().catch(e => console.warn('获奖音效播放失败:', e))
     }
   }, [])
 
@@ -170,13 +179,16 @@ export default function DrawPage() {
     setResult(winner)
     setDrawPhase('reveal')
 
-    // 8. 检查是否是奶龙彩蛋
+    // 8. 播放抽到美食时的音效
+    playAwardSound()
+
+    // 9. 检查是否是奶龙彩蛋
     if (winner.name === '奶龙') {
       setShowNailongEasterEgg(true)
       playNailongSound()
     }
 
-    // 9. 保存保底计数 + 抽卡记录
+    // 10. 保存保底计数 + 抽卡记录
     try {
       await updatePity(deviceId, { ...newPity, device_name: deviceName || '匿名用户' })
       await createDrawLog({
@@ -192,7 +204,7 @@ export default function DrawPage() {
 
     await new Promise(r => setTimeout(r, 300))
     setIsDrawing(false)
-  }, [filteredFoods, isDrawing, isPC, playOpenSound, playScrollSound, stopScrollSound, playNailongSound])
+  }, [filteredFoods, isDrawing, isPC, playOpenSound, playScrollSound, stopScrollSound, playAwardSound, playNailongSound])
 
   const handleSave = () => {
     const savedList = JSON.parse(localStorage.getItem('chis_saved') || '[]')
@@ -236,6 +248,7 @@ export default function DrawPage() {
       {/* 音频元素 */}
       <audio ref={openAudioRef} src={`${import.meta.env.BASE_URL}sounds/open.mp3`} preload="auto" />
       <audio ref={scrollAudioRef} src={`${import.meta.env.BASE_URL}sounds/scroll.mp3`} preload="auto" />
+      <audio ref={awardAudioRef} src={`${import.meta.env.BASE_URL}sounds/case-awarded.mp3`} preload="auto" />
       <audio ref={nailongAudioRef} src={`${import.meta.env.BASE_URL}sounds/nailong-laugh.wav`} preload="auto" loop />
 
       {/* 内容层 */}

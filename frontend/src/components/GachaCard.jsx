@@ -24,8 +24,8 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
       transition={{ type: 'spring', damping: 20, stiffness: 200 }}
       className={`relative ${isLarge ? 'w-72 sm:w-80' : 'w-56'} mx-auto card-25d-wrapper`}
     >
-      {/* 品级光环 */}
-      {tier === 'gold' && (
+      {/* 品级光环（金卡和银卡都有） */}
+      {(tier === 'gold' || tier === 'silver') && (
         <div className="absolute -inset-3 rounded-[28px] opacity-30 animate-pulse"
           style={{ background: config.gradient, filter: 'blur(12px)' }}
         />
@@ -35,12 +35,15 @@ export default function GachaCard({ food, showParticles = true, size = 'normal' 
       <div
         className={`card-25d card-25d-${tier} relative rounded-[20px] overflow-hidden`}
       >
-        {/* 图片 */}
-        <div className={`relative ${isLarge ? 'aspect-[3/4]' : 'aspect-[3/3.5]'} overflow-hidden`}>
+        {/* 图片容器 - 保持圆角 */}
+        <div className={`relative ${isLarge ? 'aspect-[3/4]' : 'aspect-[3/3.5]'} overflow-hidden rounded-[18px]`}>
           <img
             src={food.image}
             alt={food.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 ease-out"
+            style={{ transform: 'scale(1)' }}
+            onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
           />
 
           {/* 渐变遮罩 */}
